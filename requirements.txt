@@ -1,0 +1,25 @@
+# requirements.txt for the SMS Clothing Search App
+
+# Flask for creating the web app
+Flask==2.3.2
+
+# Twilio for handling incoming SMS and sending replies
+Twilio==8.0.0
+
+# Requests for making HTTP requests to download images and interact with APIs
+requests==2.31.0
+
+# OpenAI for using the GPT-4 API to analyze text descriptions
+openai==0.27.7
+
+# Werkzeug for secure and advanced web utilities (dependency of Flask)
+Werkzeug==2.3.2
+
+# Gunicorn for deploying Flask on a production server (if hosting outside of local environment)
+Gunicorn==20.1.0
+
+# Additional libraries that might be useful
+# - Pillow for handling images if image pre-processing is required
+# - python-dotenv to load environment variables from a .env file for managing API keys
+Pillow==9.1.0
+dotenv==1.0.0
