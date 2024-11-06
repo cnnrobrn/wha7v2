@@ -131,11 +131,17 @@ def sms_reply():
             for item, urls in links.items():
                 message = f"Top links for {item}:\n" 
                 for url in urls:
-                    short_url = response = requests.post("https://item.wha7.com/shortner", {"long_url": url})
-                    message += short_url['shortened_url'] + "\n"
+                    response = requests.post(
+                        "https://item.wha7.com/shorten", 
+                        json={"long_url": url},
+                        headers={"Content-Type": "application/json"}
+                    )
+                    if response.status_code == 200:
+                        short_url = response.json()['shortened_url']
+                        message += short_url + "\n"
+                    else:
+                        message += f"Error shortening URL: {url}\n"
                 resp.message(message)
-                #time.sleep(3)
-                
             #return str(resp)
             return str(resp)
         else:
