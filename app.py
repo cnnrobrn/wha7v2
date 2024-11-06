@@ -121,7 +121,7 @@ def sms_reply():
             
             
             for item in clothing_items.Article:
-                links[item.Item] = search_ebay(item.Amazon_Search,ebay_access_token)
+                links[item.Amazon_Search] = search_ebay(item.Amazon_Search,ebay_access_token)
                     
             print(links)
             
