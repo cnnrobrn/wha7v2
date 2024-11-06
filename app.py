@@ -132,8 +132,8 @@ def sms_reply():
                 message = f"Top links for {item}:\n" 
                 for url in urls:
                     short_url = response = requests.post("https://item.wha7.com/shortner", {"long_url": url})
-                    message += short_url.text + "\n"
-                    resp.message(message)
+                    message += short_url['shortened_url'] + "\n"
+                resp.message(message)
                 #time.sleep(3)
                 
             #return str(resp)
