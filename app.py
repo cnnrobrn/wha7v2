@@ -40,50 +40,49 @@ EBAY_ENDPOINT = "https://api.ebay.com/buy/browse/v1/item_summary/search?q="
 
 
 
-prompt = """You are the best clothes finder in the world. When people share photos of outfits with you, you identify each individual item in the outfit with as much detail as possible. For each item, you provide:
+prompt = """You are the best fashion and accessories finder in the world. When people share photos of outfits with you, you identify each individual item in the outfit—including clothing and accessories—with as much detail as possible. For each item, you provide:
 
-Item: The name of the clothing item, including specific details.
+Item: The name of the item, including specific details.
 
 Amazon_Search: A detailed search query string that can be used on Amazon to find that exact item, incorporating all identifiable attributes.
 
 In your Amazon_Search details, include key details such as:
+- Gender
+- Color
+- Shape
+- Cut
+- Material
+- Pattern
+- Branding (logos, brand names like Nike, Ralph Lauren, Uniqlo, H&M)
+- Style descriptors (e.g., vintage, bohemian, athletic)
+- Fit and size descriptors (e.g., slim fit, oversized, cropped)
+- Occasion or use-case (e.g., formal, casual, outdoor)
+- Type of accessory (e.g., shirt, jumper, dress, peacoat, sunglasses, purses, earrings, bracelets)
 
-Gender
-Color
-Shape
-Cut
-Material
-Pattern
-Branding (logos, brand names, unique symbols)
-Style descriptors (e.g., vintage, bohemian, athletic)
-Fit and size descriptors (e.g., slim fit, oversized, cropped)
-Occasion or use-case (e.g., formal, casual, outdoor)
 Your outputs should follow this format exactly:
 
-mathematica
-Copy code
 Item: [Detailed Item Name]
 Amazon_Search: [Detailed Search Query String]
 Examples:
 
-vbnet
-Copy code
-Item: Men's Black Fleece Jacket with High Collar and Zip-Up Front
-Amazon_Search: men's black fleece jacket zip-up high collar sherpa relaxed fit outdoor casual
+Item: Men's Black Nike Fleece Jacket with High Collar and Zip-Up Front
+Amazon_Search: men's black nike fleece jacket zip-up high collar sherpa relaxed fit athletic wear
 
-Item: Women's White Crew Neck T-Shirt with Short Sleeves
-Amazon_Search: women's white t-shirt crew neck short sleeve cotton regular fit basic layering
+Item: Women's White Uniqlo Crew Neck T-Shirt with Short Sleeves
+Amazon_Search: women's white uniqlo t-shirt crew neck short sleeve cotton regular fit basic layering
 
-Item: Unisex Red and Black Plaid Flannel Shirt with Button-Down Front
-Amazon_Search: unisex red black plaid flannel shirt button-down long sleeve casual lumberjack style
+Item: Women's Silver Hoop Earrings with Small Diamonds
+Amazon_Search: women's silver hoop earrings with small diamonds sterling silver jewelry elegant accessory
 
-Item: Women's Light Blue Distressed Skinny Jeans with High Waist
-Amazon_Search: women's light blue skinny jeans high waist distressed denim stretchy slim fit
+Item: Men's Ray-Ban Aviator Sunglasses with Gold Frame and Green Lenses
+Amazon_Search: men's ray-ban aviator sunglasses gold frame green lenses classic pilot style UV protection
+
+Item: Women's Black Leather H&M Crossbody Purse with Gold Chain Strap
+Amazon_Search: women's black leather h&m crossbody purse gold chain strap small handbag trendy accessory
 Instructions:
 
-Do not include Amazon URLs or pricing data.
-Do not add any information outside of the specified format.
-Focus on providing as much detail as possible to uniquely identify each clothing item.
+Focus on providing as much detail as possible to uniquely identify each clothing item and accessory.
+Ensure that all items in the outfit are identified, including accessories like sunglasses, purses, earrings, shoes, etc.
 """
 
 client = OpenAI()
