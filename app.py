@@ -136,14 +136,15 @@ def sms_reply():
             # Analyze the image using OpenAI to determine clothing items
             clothing_items = analyze_image_with_openai(base64_image_data)
             links = {}
+            images= {}
             ebay_access_token = ebay_oauth_flow()
             # Search for the top ebay links for each detected clothing item
             
             
             
             for item in clothing_items.Article:
-                links[item.Amazon_Search] = search_ebay(item.Amazon_Search,ebay_access_token)
-                    
+                links[item.Amazon_Search] = search_ebay(item.Amazon_Search,ebay_access_token)['links']
+                images[item.Amazon_Search+"_image"] = search_ebay(item.Amazon_Search,ebay_access_token)['images']    
             print(links)
             
             if from_number not in streamlit_data:
@@ -151,8 +152,11 @@ def sms_reply():
                     "clothes": []
                 }
             clothes_data = {}
-            for item, urls in links.items():
-                clothes_data[item] = urls
+            for (item, urls), (desc, name) in zip(links.items(), images.items()):
+                clothes_data[item] = {
+                    "urls": urls,
+                    "images": name
+                }
             streamlit_data[from_number]["clothes"].append(clothes_data)
 
             # Construct a response message with the links for each clothing item
@@ -250,10 +254,12 @@ def search_ebay(query,ebay_access_token):
             endpoint,
             headers=headers
         )
+        links={}
         response.raise_for_status()  # Raise an HTTPError for bad responses
         response_data = response.json()
         items = response_data.get("itemSummaries", [])
-        links = [item.get("itemWebUrl") for item in items]
+        links['links'] = [item.get("itemWebUrl") for item in items]
+        links['images'] = [item.get("image").get("imageUrl") for item in items]
         return links
     except requests.exceptions.HTTPError as http_err:
         print(f"HTTP error occurred: {http_err}")
