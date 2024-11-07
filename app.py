@@ -231,7 +231,7 @@ def search_ebay(query,ebay_access_token):
         }
         #print(ebay_access_token)
         url_query=urllib.parse.quote_plus(query)
-        endpoint = f"{EBAY_ENDPOINT}{url_query}&limit=3"
+        endpoint = f"{EBAY_ENDPOINT}{url_query}&limit=3&filter=buyingOptions:{{'FIXED_PRICE'}}&filter=deliveryCountry:US,conditions:{{'NEW'}}"
         response = requests.get(
             endpoint,
             headers=headers
