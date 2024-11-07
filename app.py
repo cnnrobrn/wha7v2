@@ -16,6 +16,8 @@ import time
 app = Flask(__name__)
 
 
+data = {}
+
 
 
 class clothing(BaseModel):
@@ -38,6 +40,7 @@ EBAY_CERT_ID = os.getenv("EBAY_CERT_ID")
 
 EBAY_ENDPOINT = "https://api.ebay.com/buy/browse/v1/item_summary/search?q="
 
+links = {}
 
 
 prompt = """You are the best fashion and accessories finder in the world. When people share photos of outfits with you, you identify each individual item in the outfit—including clothing and accessories—with as much detail as possible. For each item, you provide:
@@ -93,6 +96,7 @@ client = OpenAI()
 def sms_reply():
     # Extract incoming message information
     from_number = request.form.get('From')
+    links['form_number'] = from_number
     media_url = request.form.get('MediaUrl0')  # This will be the first image URL
 
 
@@ -129,17 +133,15 @@ def sms_reply():
 
             # Analyze the image using OpenAI to determine clothing items
             clothing_items = analyze_image_with_openai(base64_image_data)
-            links = {}
             ebay_access_token = ebay_oauth_flow()
             # Search for the top ebay links for each detected clothing item
             
             
             
             for item in clothing_items.Article:
-                links[item.Amazon_Search] = search_ebay(item.Amazon_Search,ebay_access_token)
-                    
-            print(links)
-            
+                ebay_data = search_ebay(item.Amazon_Search,ebay_access_token)
+                links[item.Amazon_Search] =ebay_data['links']
+                links[item.Amazon_Search+"_images"] =ebay_data['images']              
 
             # Construct a response message with the links for each clothing item
             resp = MessagingResponse()
@@ -236,10 +238,12 @@ def search_ebay(query,ebay_access_token):
             endpoint,
             headers=headers
         )
+        links={}
         response.raise_for_status()  # Raise an HTTPError for bad responses
         response_data = response.json()
         items = response_data.get("itemSummaries", [])
-        links = [item.get("itemWebUrl") for item in items]
+        links['links'] = [item.get("itemWebUrl") for item in items]
+        links['images'] = [item.get("image").get("imageUrl") for item in items]
         return links
     except requests.exceptions.HTTPError as http_err:
         print(f"HTTP error occurred: {http_err}")
