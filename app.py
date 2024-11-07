@@ -102,21 +102,10 @@ def sms_reply():
     media_url = request.form.get('MediaUrl0')  # This will be the first image URL
 
 
-    if media_url:
-        print(f"TWILIO_ACCOUNT_SID: {TWILIO_ACCOUNT_SID}")
-        print(f"TWILIO_AUTH_TOKEN: {TWILIO_AUTH_TOKEN}")
-        print(f"API_KEY: {API_KEY}")
-        print(f"EBAY_AFFILIATE_ID: {EBAY_AFFILIATE_ID}")
-        print(f"EBAY_APP_ID: {EBAY_APP_ID}")
-        print(f"EBAY_DEV_ID: {EBAY_DEV_ID}")
-        print(f"EBAY_CERT_ID: {EBAY_CERT_ID}")
-
-        
+    if media_url:        
         response = requests.get(media_url, auth=(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN))
 
 # Check the response to ensure it was successful
-        print("Response status code:")
-        print(response.status_code)
         if response.status_code == 200:
             # Get the binary content of the image
             image_content = response.content
@@ -145,26 +134,7 @@ def sms_reply():
             
             
             for item in clothing_items.Article:
-                links[item.Amazon_Search] = search_ebay(item.Amazon_Search,ebay_access_token)['links']
-                images[item.Amazon_Search+"_image"] = search_ebay(item.Amazon_Search,ebay_access_token)['images']    
-                shortDescriptions[item.Amazon_Search+"_shortdescription"] = search_ebay(item.Amazon_Search,ebay_access_token)['shortDescription']    
-                prices[item.Amazon_Search+"_price"] = search_ebay(item.Amazon_Search,ebay_access_token)['price']    
-
-
-            
-            if from_number not in streamlit_data:
-                streamlit_data[from_number] = {
-                    "clothes": []
-                }
-            clothes_data = {}
-            for (item, urls), (desc, name), (detail, desc), (pic, image) in zip(links.items(), images.items(),shortDescriptions.items(),prices.items()):
-                clothes_data[item] = {
-                    "urls": urls,
-                    "images": name,
-                    "shortDescription": desc,
-                    "price": image
-                }
-            streamlit_data[from_number]["clothes"].append(clothes_data)
+                links[item.Amazon_Search] = search_ebay(item.Amazon_Search,ebay_access_token)['links'] 
 
             # Construct a response message with the links for each clothing item
             resp = MessagingResponse()
@@ -189,6 +159,23 @@ def sms_reply():
                     print(f"Error sending message: {e}")
                     resp.message("An error occurred while processing your request.")
             #return str(resp)
+            if from_number not in streamlit_data:
+                streamlit_data[from_number] = {
+                    "clothes": []
+                }
+            clothes_data = {}
+            for item in clothing_items.Article:
+                images[item.Amazon_Search+"_image"] = search_ebay(item.Amazon_Search,ebay_access_token)['images']    
+                shortDescriptions[item.Amazon_Search+"_shortdescription"] = search_ebay(item.Amazon_Search,ebay_access_token)['shortDescription']    
+                prices[item.Amazon_Search+"_price"] = search_ebay(item.Amazon_Search,ebay_access_token)['price']   
+            for (item, urls), (desc, name), (detail, desc), (pic, image) in zip(links.items(), images.items(),shortDescriptions.items(),prices.items()):
+                clothes_data[item] = {
+                    "urls": urls,
+                    "images": name,
+                    "shortDescription": desc,
+                    "price": image
+                }
+            streamlit_data[from_number]["clothes"].append(clothes_data)
             return str(resp)
         else:
             return "Error: Unable to fetch the image."
