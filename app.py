@@ -182,7 +182,11 @@ def sms_reply():
                         message += short_url + "\n"
                     else:
                         message += f"Error shortening URL: {url}\n"
-                resp.message(message)
+                try:
+                    resp.message(message)
+                except Exception as e:
+                    print(f"Error sending message: {e}")
+                    resp.message("An error occurred while processing your request.")
             #return str(resp)
             return str(resp)
         else:
