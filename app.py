@@ -137,6 +137,8 @@ def sms_reply():
             clothing_items = analyze_image_with_openai(base64_image_data)
             links = {}
             images= {}
+            shortDescriptions= {}
+            prices= {}
             ebay_access_token = ebay_oauth_flow()
             # Search for the top ebay links for each detected clothing item
             
@@ -145,6 +147,10 @@ def sms_reply():
             for item in clothing_items.Article:
                 links[item.Amazon_Search] = search_ebay(item.Amazon_Search,ebay_access_token)['links']
                 images[item.Amazon_Search+"_image"] = search_ebay(item.Amazon_Search,ebay_access_token)['images']    
+                shortDescriptions[item.Amazon_Search+"_shortdescription"] = search_ebay(item.Amazon_Search,ebay_access_token)['shortDescription']    
+                prices[item.Amazon_Search+"_price"] = search_ebay(item.Amazon_Search,ebay_access_token)['price']    
+
+
             print(links)
             
             if from_number not in streamlit_data:
@@ -152,10 +158,12 @@ def sms_reply():
                     "clothes": []
                 }
             clothes_data = {}
-            for (item, urls), (desc, name) in zip(links.items(), images.items()):
+            for (item, urls), (desc, name), (detail, desc), (pic, image) in zip(links.items(), images.items(),shortDescriptions.items(),prices.items()):
                 clothes_data[item] = {
                     "urls": urls,
-                    "images": name
+                    "images": name,
+                    "shortDescription": desc,
+                    "price": image
                 }
             streamlit_data[from_number]["clothes"].append(clothes_data)
 
@@ -260,6 +268,8 @@ def search_ebay(query,ebay_access_token):
         items = response_data.get("itemSummaries", [])
         links['links'] = [item.get("itemWebUrl") for item in items]
         links['images'] = [item.get("image").get("imageUrl") for item in items]
+        links['shortDescription'] = [item.get("shortDescription") for item in items]
+        links['price'] = [item.get("price").get("value") for item in items]
         return links
     except requests.exceptions.HTTPError as http_err:
         print(f"HTTP error occurred: {http_err}")
