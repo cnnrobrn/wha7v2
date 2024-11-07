@@ -194,33 +194,36 @@ def sms_reply():
         return str(resp)
 
 def analyze_image_with_openai(base64_image):
-    # Example of using OpenAI to generate a response about clothing items
-    # Assuming OpenAI GPT-4 can analyze text data about images (would need further development for visual analysis)
-    #print(base64_image)
-    response = client.beta.chat.completions.parse(
-        model="gpt-4o-2024-08-06",
-        messages=[
-            {"role": "system", "content": "You are an expert at structured data extraction. You will be given a photo and should convert it into the given structure."},
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": prompt,
-                    },
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": base64_image
+    try:
+        # Example of using OpenAI to generate a response about clothing items
+        # Assuming OpenAI GPT-4 can analyze text data about images (would need further development for visual analysis)
+        response = client.beta.chat.completions.parse(
+            model="gpt-4o-2024-08-06",
+            messages=[
+                {"role": "system", "content": "You are an expert at structured data extraction. You will be given a photo and should convert it into the given structure."},
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": prompt,
                         },
-                    },
-                ],
-            }
-        ],
-        response_format=Outfit,
-        max_tokens=2000,
-    )
-    return response.choices[0].message.parsed
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": base64_image
+                            },
+                        },
+                    ],
+                }
+            ],
+            response_format=Outfit,
+            max_tokens=2000,
+        )
+        return response.choices[0].message.parsed
+    except Exception as e:
+        print(f"Error analyzing image with OpenAI: {e}")
+        return None
 
 def search_amazon(query,ebay_access_token):
     results= [f"https://www.amazon.com/s?k={query}&page={i}" for i in range(1, 4)]
@@ -268,8 +271,8 @@ def search_ebay(query,ebay_access_token):
         items = response_data.get("itemSummaries", [])
         links['links'] = [item.get("itemWebUrl") for item in items]
         links['images'] = [item.get("image").get("imageUrl") for item in items]
-        links['shortDescription'] = [item.get("shortDescription") for item in items]
-        links['price'] = [item.get("price").get("value") for item in items]
+        links['shortDescription'] = [item.get("shortDescription", "") for item in items]
+        links['price'] = [item.get("price", {}).get("value", "") for item in items]
         return links
     except requests.exceptions.HTTPError as http_err:
         print(f"HTTP error occurred: {http_err}")
