@@ -13,11 +13,9 @@ import urllib.parse
 import time
 
 
+streamlit_data = {}
+
 app = Flask(__name__)
-
-
-data = {}
-
 
 
 class clothing(BaseModel):
@@ -40,8 +38,13 @@ EBAY_CERT_ID = os.getenv("EBAY_CERT_ID")
 
 EBAY_ENDPOINT = "https://api.ebay.com/buy/browse/v1/item_summary/search?q="
 
-links = {}
-
+@app.route("/clothes", methods=['POST'])
+def clothes():
+    from_number = request.form.get('From')
+    if from_number in streamlit_data:
+        return json.dumps(streamlit_data[from_number])
+    else:
+        return json.dumps({"clothes": []})
 
 prompt = """You are the best fashion and accessories finder in the world. When people share photos of outfits with you, you identify each individual item in the outfit—including clothing and accessories—with as much detail as possible. For each item, you provide:
 
@@ -96,7 +99,6 @@ client = OpenAI()
 def sms_reply():
     # Extract incoming message information
     from_number = request.form.get('From')
-    links['form_number'] = from_number
     media_url = request.form.get('MediaUrl0')  # This will be the first image URL
 
 
@@ -133,19 +135,29 @@ def sms_reply():
 
             # Analyze the image using OpenAI to determine clothing items
             clothing_items = analyze_image_with_openai(base64_image_data)
+            links = {}
             ebay_access_token = ebay_oauth_flow()
             # Search for the top ebay links for each detected clothing item
             
             
             
             for item in clothing_items.Article:
-                ebay_data = search_ebay(item.Amazon_Search,ebay_access_token)
-                links[item.Amazon_Search] =ebay_data['links']
-                links[item.Amazon_Search+"_images"] =ebay_data['images']              
+                links[item.Amazon_Search] = search_ebay(item.Amazon_Search,ebay_access_token)
+                    
+            print(links)
+            
+            if from_number not in streamlit_data:
+                streamlit_data[from_number] = {
+                    "clothes": []
+                }
+            clothes_data = {}
+            for item, urls in links.items():
+                clothes_data[item] = urls
+            streamlit_data[from_number]["clothes"].append(clothes_data)
 
             # Construct a response message with the links for each clothing item
             resp = MessagingResponse()
-            for phone,item, urls,images in links.items():
+            for item, urls in links.items():
                 message = f"Top links for {item}:\n" 
                 for url in urls:
                     response = requests.post(
@@ -238,12 +250,10 @@ def search_ebay(query,ebay_access_token):
             endpoint,
             headers=headers
         )
-        links={}
         response.raise_for_status()  # Raise an HTTPError for bad responses
         response_data = response.json()
         items = response_data.get("itemSummaries", [])
-        links['links'] = [item.get("itemWebUrl") for item in items]
-        links['images'] = [item.get("image").get("imageUrl") for item in items]
+        links = [item.get("itemWebUrl") for item in items]
         return links
     except requests.exceptions.HTTPError as http_err:
         print(f"HTTP error occurred: {http_err}")
