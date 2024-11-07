@@ -151,7 +151,6 @@ def sms_reply():
                 prices[item.Amazon_Search+"_price"] = search_ebay(item.Amazon_Search,ebay_access_token)['price']    
 
 
-            print(links)
             
             if from_number not in streamlit_data:
                 streamlit_data[from_number] = {
@@ -172,6 +171,7 @@ def sms_reply():
             for item, urls in links.items():
                 message = f"Top links for {item}:\n" 
                 for url in urls:
+                    print(url)
                     response = requests.post(
                         "https://item.wha7.com/shorten", 
                         json={"long_url": url},
@@ -182,6 +182,7 @@ def sms_reply():
                         message += short_url + "\n"
                     else:
                         message += f"Error shortening URL: {url}\n"
+                    print(message)
                 try:
                     resp.message(message)
                 except Exception as e:
