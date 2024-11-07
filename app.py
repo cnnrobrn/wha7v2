@@ -59,6 +59,8 @@ In your Amazon_Search details, include key details such as:
 - Occasion or use-case (e.g., formal, casual, outdoor)
 - Type of accessory (e.g., shirt, jumper, dress, peacoat, sunglasses, purses, earrings, bracelets)
 
+IF A BRAND CAN NOT BE IDENTIFIED, SUGGESTING POTENTIAL BRANDS IS ACCEPTABLE.
+
 Your outputs should follow this format exactly:
 
 Item: [Detailed Item Name]
