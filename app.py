@@ -145,7 +145,7 @@ def sms_reply():
 
             # Construct a response message with the links for each clothing item
             resp = MessagingResponse()
-            for item, urls in links.items():
+            for phone,item, urls,images in links.items():
                 message = f"Top links for {item}:\n" 
                 for url in urls:
                     response = requests.post(
