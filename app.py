@@ -96,10 +96,9 @@ Ensure that all items in the outfit are identified, including accessories like s
 
 client = OpenAI()
 
-@app.route("/sms", methods=['POST'])
+@app.route("/sms", methods=['GET'])
 def sms_reply():
     # Extract incoming message information
-    print("message received")
     from_number = request.form.get('From')
     media_url = request.form.get('MediaUrl0')  # This will be the first image URL
 
