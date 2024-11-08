@@ -13,8 +13,11 @@ import urllib.parse
 import string
 import random
 
-
+#Data for streamlit UI
 streamlit_data = {}
+
+# Dictionary to store short-to-original URL mappings
+url_mapping = {}
 
 app = Flask(__name__)
 
@@ -267,8 +270,6 @@ def search_ebay(query,ebay_access_token):
         print(f"Other error occurred: {err}")
         return ["An error occurred"]
     
-# Dictionary to store short-to-original URL mappings
-url_mapping = {}
 
 # Function to generate a random short code for a URL
 def generate_short_code(length=6):
@@ -281,21 +282,16 @@ def shorten_url(original_url):
     short_code = generate_short_code()
     while short_code in url_mapping:
         short_code = generate_short_code()
-
     # Store the mapping of short code to original URL
     url_mapping[short_code] = original_url
-    
     # Return the short URL
     return f"https://app.wha7.com/{short_code}"
 
-# Function to retrieve the original URL
-def retrieve_original_url(short_code):
-    return url_mapping.get(short_code, None)
 
 # Flask route to retrieve the original URL and redirect
 @app.route('/<short_code>', methods=['GET'])
 def retrieve(short_code):
-    original_url = retrieve_original_url(short_code)
+    original_url = url_mapping[short_code]
     if original_url:
         return redirect(original_url)
     else:
