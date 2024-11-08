@@ -160,7 +160,7 @@ def sms_reply():
                 }
             clothes_data = {}
             for item in clothing_items.Article:
-                ebay_list = ebay_list(item.Amazon_Search,ebay_access_token)
+                ebay_list = search_ebay(item.Amazon_Search,ebay_access_token)
                 images[item.Amazon_Search+"_image"] = ebay_list['images']    
                 shortDescriptions[item.Amazon_Search+"_shortdescription"] = ebay_list(item.Amazon_Search,ebay_access_token)['shortDescription']    
                 prices[item.Amazon_Search+"_price"] = ebay_list(item.Amazon_Search,ebay_access_token)['price']   
