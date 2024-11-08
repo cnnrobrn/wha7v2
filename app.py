@@ -96,16 +96,17 @@ Ensure that all items in the outfit are identified, including accessories like s
 
 client = OpenAI()
 
-@app.route("/sms", methods=['GET'])
+@app.route("/sms", methods=['POST'])
 def sms_reply():
     # Extract incoming message information
+    print('Message Recieved')
     from_number = request.form.get('From')
     media_url = request.form.get('MediaUrl0')  # This will be the first image URL
 
 
     if media_url:        
         response = requests.get(media_url, auth=(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN))
-
+        print('Media Recieved')
 # Check the response to ensure it was successful
         if response.status_code == 200:
             # Get the binary content of the image
@@ -125,6 +126,7 @@ def sms_reply():
 
             # Analyze the image using OpenAI to determine clothing items
             clothing_items = analyze_image_with_openai(base64_image_data)
+            print('Open AI Run')
             links = {}
             images= {}
             shortDescriptions= {}
@@ -144,8 +146,10 @@ def sms_reply():
                 for url in urls:
                     short_url = shorten_url(url)
                     message += short_url + "\n"
+                print('message ready')
                 try:
                     resp.message(message)
+                    print('message sent')
                 except Exception as e:
                     print(f"Error sending message: {e}")
                     resp.message("An error occurred while processing your request.")
@@ -264,8 +268,6 @@ def search_ebay(query,ebay_access_token):
         print(f"Other error occurred: {err}")
         return ["An error occurred"]
     
-app = Flask(__name__)
-
 # Dictionary to store short-to-original URL mappings
 url_mapping = {}
 
