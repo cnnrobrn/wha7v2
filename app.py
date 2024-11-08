@@ -267,29 +267,25 @@ def search_ebay(query,ebay_access_token):
         print(f"Other error occurred: {err}")
         return ["An error occurred"]
     
-# Dictionary to store short-to-original URL mappings
+# In-memory storage for URL mappings
 url_mapping = {}
 
-# Function to generate a random short code for a URL
 def generate_short_code(length=6):
+    """Generate a random short code for URLs"""
     characters = string.ascii_letters + string.digits
     return ''.join(random.choice(characters) for _ in range(length))
 
-# Function to shorten a URL
 def shorten_url(original_url):
-    # Generate a unique short code
+    """Create a short URL from a long URL"""
     short_code = generate_short_code()
     while short_code in url_mapping:
         short_code = generate_short_code()
-
-    # Store the mapping of short code to original URL
-    url_mapping[short_code] = original_url
     
-    # Return the short URL
+    url_mapping[short_code] = original_url
     return f"https://app.wha7.com/{short_code}"
 
-# Function to retrieve the original URL
 def retrieve_original_url(short_code):
+    """Retrieve the original URL from a short code"""
     return url_mapping.get(short_code)
 
 # Flask route to retrieve the original URL and redirect
