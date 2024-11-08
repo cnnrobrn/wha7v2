@@ -141,7 +141,7 @@ def sms_reply():
             for item, urls in links.items():
                 message = f"Top links for {item}:\n" 
                 for url in urls:
-                    short_url = shorten(url)
+                    short_url = shorten_url(url)
                     message += short_url + "\n"
                 try:
                     resp.message(message)
@@ -300,7 +300,7 @@ def retrieve_original_url(short_code):
 def shorten(url):
     if not url:
         return jsonify({'error': 'Please provide a long URL'}), 400
-    short_url = shorten_url(original_url)
+    short_url = shorten_url(url)
     return {'shortened_url': short_url}
 
 # Flask route to retrieve the original URL and redirect
