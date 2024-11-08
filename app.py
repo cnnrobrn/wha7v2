@@ -268,7 +268,23 @@ def search_ebay(query,ebay_access_token):
         return ["An error occurred"]
     
 # In-memory storage for URL mappings
-url_mapping = {}
+import json
+
+URL_MAPPING_FILE = "url_mapping.json"
+
+def load_url_mapping():
+    """Load URL mappings from a file"""
+    if os.path.exists(URL_MAPPING_FILE):
+        with open(URL_MAPPING_FILE, "r") as file:
+            return json.load(file)
+    return {}
+
+def save_url_mapping(url_mapping):
+    """Save URL mappings to a file"""
+    with open(URL_MAPPING_FILE, "w") as file:
+        json.dump(url_mapping, file)
+
+url_mapping = load_url_mapping()
 
 def generate_short_code(length=6):
     """Generate a random short code for URLs"""
@@ -282,6 +298,7 @@ def shorten_url(original_url):
         short_code = generate_short_code()
     
     url_mapping[short_code] = original_url
+    save_url_mapping(url_mapping)
     return f"https://app.wha7.com/{short_code}"
 
 def retrieve_original_url(short_code):
