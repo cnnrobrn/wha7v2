@@ -141,18 +141,8 @@ def sms_reply():
             for item, urls in links.items():
                 message = f"Top links for {item}:\n" 
                 for url in urls:
-                    print(url)
-                    response = requests.post(
-                        "https://item.wha7.com/shorten", 
-                        json={"long_url": url},
-                        headers={"Content-Type": "application/json"}
-                    )
-                    if response.status_code == 200:
-                        short_url = response.json()['shortened_url']
-                        message += short_url + "\n"
-                    else:
-                        message += f"Error shortening URL: {url}\n"
-                    print(message)
+                    short_url = shorten(url)
+                    message += short_url + "\n"
                 try:
                     resp.message(message)
                 except Exception as e:
@@ -272,6 +262,56 @@ def search_ebay(query,ebay_access_token):
     except Exception as err:
         print(f"Other error occurred: {err}")
         return ["An error occurred"]
+    
+    
+    
+from flask import Flask, request, jsonify, redirect
+import string
+import random
+
+app = Flask(__name__)
+
+# Dictionary to store short-to-original URL mappings
+url_mapping = {}
+
+# Function to generate a random short code for a URL
+def generate_short_code(length=6):
+    characters = string.ascii_letters + string.digits
+    return ''.join(random.choice(characters) for _ in range(length))
+
+# Function to shorten a URL
+def shorten_url(original_url):
+    # Generate a unique short code
+    short_code = generate_short_code()
+    while short_code in url_mapping:
+        short_code = generate_short_code()
+
+    # Store the mapping of short code to original URL
+    url_mapping[short_code] = original_url
+    
+    # Return the short URL
+    return f"https://item.wha7.com/{short_code}"
+
+# Function to retrieve the original URL
+def retrieve_original_url(short_code):
+    return url_mapping.get(short_code, None)
+
+# Flask route to shorten a URL
+def shorten(url):
+    if not url:
+        return jsonify({'error': 'Please provide a long URL'}), 400
+    short_url = shorten_url(original_url)
+    return {'shortened_url': short_url}
+
+# Flask route to retrieve the original URL and redirect
+@app.route('/<short_code>', methods=['GET'])
+def retrieve(short_code):
+    original_url = retrieve_original_url(short_code)
+    if original_url:
+        return redirect(original_url)
+    else:
+        return jsonify({'error': 'Short code not found'}), 404
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000,debug=True)
