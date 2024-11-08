@@ -292,13 +292,6 @@ def shorten_url(original_url):
 def retrieve_original_url(short_code):
     return url_mapping.get(short_code, None)
 
-# Flask route to shorten a URL
-def shorten(url):
-    if not url:
-        return jsonify({'error': 'Please provide a long URL'}), 400
-    short_url = shorten_url(url)
-    return {'shortened_url': short_url}
-
 # Flask route to retrieve the original URL and redirect
 @app.route('/<short_code>', methods=['GET'])
 def retrieve(short_code):
