@@ -137,8 +137,11 @@ def sms_reply():
             
             
             for item in clothing_items.Article:
-                links[item.Amazon_Search] = search_ebay(item.Amazon_Search,ebay_access_token)['links'] 
-
+                ebay_list = search_ebay(item.Amazon_Search,ebay_access_token)
+                links[item.Amazon_Search] = ebay_list['links'] 
+                images[item.Amazon_Search+"_image"] = ebay_list['images']    
+                shortDescriptions[item.Amazon_Search+"_shortdescription"] = ebay_list['shortDescription']    
+                prices[item.Amazon_Search+"_price"] = ebay_list['price']   
             # Construct a response message with the links for each clothing item
             resp = MessagingResponse()
             for item, urls in links.items():
@@ -159,11 +162,6 @@ def sms_reply():
                     "clothes": []
                 }
             clothes_data = {}
-            for item in clothing_items.Article:
-                ebay_list = search_ebay(item.Amazon_Search,ebay_access_token)
-                images[item.Amazon_Search+"_image"] = ebay_list['images']    
-                shortDescriptions[item.Amazon_Search+"_shortdescription"] = ebay_list(item.Amazon_Search,ebay_access_token)['shortDescription']    
-                prices[item.Amazon_Search+"_price"] = ebay_list(item.Amazon_Search,ebay_access_token)['price']   
             for (item, urls), (desc, name), (detail, desc), (pic, image) in zip(links.items(), images.items(),shortDescriptions.items(),prices.items()):
                 clothes_data[item] = {
                     "urls": urls,
