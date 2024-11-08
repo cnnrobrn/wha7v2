@@ -1,4 +1,4 @@
-from flask import Flask, request
+from flask import Flask, request, jsonify, redirect
 from twilio.twiml.messaging_response import MessagingResponse
 import requests
 from openai import OpenAI
@@ -10,7 +10,8 @@ from dotenv import load_dotenv
 from requests.auth import HTTPBasicAuth
 from pydantic import BaseModel
 import urllib.parse
-import time
+import string
+import random
 
 
 streamlit_data = {}
@@ -77,7 +78,7 @@ Item: Men's Black Nike Fleece Jacket with High Collar and Zip-Up Front
 Amazon_Search: men's black nike fleece jacket zip-up high collar sherpa relaxed fit athletic wear
 
 Item: Women's White Uniqlo Crew Neck T-Shirt with Short Sleeves
-Amazon_Search: women's white uniqlo t-shirt crew neck short sleeve cotton regular fit basic layering
+Amazon_Search: women's white uniqlo t-shirt crew neck short sleeve cotton regular fit basic layering small tent logo on right chest
 
 Item: Women's Silver Hoop Earrings with Small Diamonds
 Amazon_Search: women's silver hoop earrings with small diamonds sterling silver jewelry elegant accessory
@@ -98,6 +99,7 @@ client = OpenAI()
 @app.route("/sms", methods=['POST'])
 def sms_reply():
     # Extract incoming message information
+    print("message received")
     from_number = request.form.get('From')
     media_url = request.form.get('MediaUrl0')  # This will be the first image URL
 
@@ -263,12 +265,6 @@ def search_ebay(query,ebay_access_token):
         print(f"Other error occurred: {err}")
         return ["An error occurred"]
     
-    
-    
-from flask import Flask, request, jsonify, redirect
-import string
-import random
-
 app = Flask(__name__)
 
 # Dictionary to store short-to-original URL mappings
