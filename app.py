@@ -290,7 +290,7 @@ def shorten_url(original_url):
     url_mapping[short_code] = original_url
     
     # Return the short URL
-    return f"https://item.wha7.com/{short_code}"
+    return f"https://app.wha7.com/{short_code}"
 
 # Function to retrieve the original URL
 def retrieve_original_url(short_code):
