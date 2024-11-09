@@ -290,7 +290,7 @@ def shorten_url(original_url):
 
 # Function to retrieve the original URL
 def retrieve_original_url(short_code):
-    return url_mapping.get(short_code, None)
+    return url_mapping.get(short_code)
 
 # Flask route to retrieve the original URL and redirect
 @app.route('/<short_code>', methods=['GET'])
