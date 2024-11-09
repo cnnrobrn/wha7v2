@@ -284,6 +284,7 @@ def shorten_url(original_url):
 
     # Store the mapping of short code to original URL
     url_mapping[short_code] = original_url
+    print(url_mapping)
     
     # Return the short URL
     return f"https://app.wha7.com/{short_code}"
