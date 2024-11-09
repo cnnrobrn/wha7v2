@@ -293,7 +293,7 @@ def shorten_url(long_url):
 
     # Handle the response
     if response.status_code == 200:
-        return('Shortened URL:', response.json().get('shortened_url'))
+        return(response.json().get('shortened_url'))
     else:
         print('Error:', response.json().get('error'))
         return None
