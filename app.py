@@ -280,7 +280,7 @@ def retrieve(short_code):
 
 def shorten_url(long_url):
     # Define the endpoint URL (change port if necessary)
-    url = 'url_shortener.railway.internal'
+    url = 'url_shortener.railway.internal/shorten'
 
     # Prepare the headers and payload
     headers = {'Content-Type': 'application/json'}
