@@ -266,32 +266,6 @@ def search_ebay(query,ebay_access_token):
     except Exception as err:
         print(f"Other error occurred: {err}")
         return ["An error occurred"]
-    
-# Dictionary to store short-to-original URL mappings
-url_mapping = {}
-
-# Function to generate a random short code for a URL
-def generate_short_code(length=6):
-    characters = string.ascii_letters + string.digits
-    return ''.join(random.choice(characters) for _ in range(length))
-
-# Function to shorten a URL
-def shorten_url(original_url):
-    # Generate a unique short code
-    short_code = generate_short_code()
-    while short_code in url_mapping:
-        short_code = generate_short_code()
-
-    # Store the mapping of short code to original URL
-    url_mapping[short_code] = original_url
-    print(url_mapping)
-    
-    # Return the short URL
-    return f"https://app.wha7.com/{short_code}"
-
-# Function to retrieve the original URL
-def retrieve_original_url(short_code):
-    return url_mapping.get(short_code)
 
 # Flask route to retrieve the original URL and redirect
 @app.route('/<short_code>', methods=['GET'])
@@ -302,6 +276,27 @@ def retrieve(short_code):
     else:
         return jsonify({'error': 'Short code not found'}), 404
 
+
+
+def shorten_url(long_url):
+    # Define the endpoint URL (change port if necessary)
+    url = 'url_shortener.railway.internal'
+
+    # Prepare the headers and payload
+    headers = {'Content-Type': 'application/json'}
+    payload = {
+        'long_url': long_url
+    }
+
+    # Send a POST request
+    response = requests.post(url, headers=headers, data=json.dumps(payload))
+
+    # Handle the response
+    if response.status_code == 200:
+        return('Shortened URL:', response.json().get('shortened_url'))
+    else:
+        print('Error:', response.json().get('error'))
+        return None
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000,debug=True)
