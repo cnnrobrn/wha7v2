@@ -280,7 +280,7 @@ def retrieve(short_code):
 
 def shorten_url(long_url):
     # Define the endpoint URL (change port if necessary)
-    url = 'htps://url_shortener.railway.internal/shorten'
+    url = 'https://item.wha7.com/shorten'
 
     # Prepare the headers and payload
     headers = {'Content-Type': 'application/json'}
