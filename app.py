@@ -30,7 +30,7 @@ EBAY_AFFILIATE_ID = os.getenv("EBAY_AFFILIATE_ID")
 EBAY_APP_ID = os.getenv("EBAY_APP_ID")
 EBAY_DEV_ID = os.getenv("EBAY_DEV_ID")
 EBAY_CERT_ID = os.getenv("EBAY_CERT_ID")
-DATABASE_URL="postgresql://postgres:jFioPwZyrXBJGwpuwnQjxKjmiRgbTKzH@junction.proxy.rlwy.net:55770/railway"
+DATABASE_URL= os.getenv("DATABASE_URL")
 
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -189,12 +189,7 @@ def sms_reply():
                 )
                 db.session.add(new_item)
             
-                try:
-                    db.session.commit()
-                except Exception as e:
-                    db.session.rollback()  # Rollback the session in case of an error
-                    print(f"Error committing to the database: {e}")
-                    # Optionally, raise or handle the error appropriately here.
+                db.session.commit()
 
             # Construct response message
             resp = MessagingResponse()
