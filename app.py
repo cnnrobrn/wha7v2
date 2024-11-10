@@ -21,7 +21,15 @@ app = Flask(__name__)
 
 
 
-
+# Configure OpenAI API key
+load_dotenv()
+TWILIO_ACCOUNT_SID=os.getenv('TWILIO_ACCOUNT_SID')
+TWILIO_AUTH_TOKEN=os.getenv('TWILIO_AUTH_TOKEN')
+API_KEY=os.getenv('OPENAI_API_KEY')
+EBAY_AFFILIATE_ID = os.getenv("EBAY_AFFILIATE_ID")
+EBAY_APP_ID = os.getenv("EBAY_APP_ID")
+EBAY_DEV_ID = os.getenv("EBAY_DEV_ID")
+EBAY_CERT_ID = os.getenv("EBAY_CERT_ID")
 DATABASE_URL = os.getenv('DATABASE_URL')
 
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
@@ -59,7 +67,7 @@ streamlit_data = {}
 
 migrate = Migrate(app, db)
 
-@app.before_request
+@app.before_first_request
 def apply_migrations():
     with app.app_context():
         upgrade()  # Automatically apply migrations
@@ -72,15 +80,7 @@ class Outfits(BaseModel):
     Outfits:str
     Article:list[clothing]
 
-# Configure OpenAI API key
-load_dotenv()
-TWILIO_ACCOUNT_SID=os.getenv('TWILIO_ACCOUNT_SID')
-TWILIO_AUTH_TOKEN=os.getenv('TWILIO_AUTH_TOKEN')
-API_KEY=os.getenv('OPENAI_API_KEY')
-EBAY_AFFILIATE_ID = os.getenv("EBAY_AFFILIATE_ID")
-EBAY_APP_ID = os.getenv("EBAY_APP_ID")
-EBAY_DEV_ID = os.getenv("EBAY_DEV_ID")
-EBAY_CERT_ID = os.getenv("EBAY_CERT_ID")
+
 
 EBAY_ENDPOINT = "https://api.ebay.com/buy/browse/v1/item_summary/search?q="
 
