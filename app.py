@@ -59,7 +59,7 @@ streamlit_data = {}
 
 migrate = Migrate(app, db)
 
-@app.before_first_request
+@app.before_request
 def apply_migrations():
     with app.app_context():
         upgrade()  # Automatically apply migrations
