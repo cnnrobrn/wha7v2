@@ -48,10 +48,10 @@ class Item(db.Model):
     __tablename__ = 'items'
     id = db.Column(db.Integer, primary_key=True)
     outfit_id = db.Column(db.Integer, db.ForeignKey('outfits.id'), nullable=False)
-    url = db.Column(db.String(2000), nullable=False)  # Increase URL length to handle long links
-    price = db.Column(db.String(1000), nullable=True)  # Increase length if needed
-    ebay_short_description = db.Column(db.Text, nullable=True)  # Use Text to allow very long descriptions
-    photo_url = db.Column(db.String(2000), nullable=True)  # Increase length to handle long photo URLs
+    url = db.Column(db.String(2000), nullable=False)  # Increased to accommodate longer URLs
+    price = db.Column(db.String(200), nullable=True)  # Increase length if needed (200 should suffice for price lists)
+    ebay_short_description = db.Column(db.Text, nullable=True)  # Change to Text to handle longer descriptions
+    photo_url = db.Column(db.String(2000), nullable=True)  # Increased to accommodate long photo URLs
 
 
 
