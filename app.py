@@ -36,17 +36,17 @@ class Outfit(db.Model):
     __tablename__ = 'outfits'
     id = db.Column(db.Integer, primary_key=True)
     phone_id = db.Column(db.Integer, db.ForeignKey('phone_numbers.id'), nullable=False)
-    description = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.String(1000), nullable=False)
     items = db.relationship('Item', backref='outfit', lazy=True)
 
 class Item(db.Model):
     __tablename__ = 'items'
     id = db.Column(db.Integer, primary_key=True)
     outfit_id = db.Column(db.Integer, db.ForeignKey('outfits.id'), nullable=False)
-    url = db.Column(db.String(500), nullable=False)
-    price = db.Column(db.String(50), nullable=True)
-    ebay_short_description = db.Column(db.String(200), nullable=True)
-    photo_url = db.Column(db.String(500), nullable=True)
+    url = db.Column(db.String(1000), nullable=False)
+    price = db.Column(db.String(1000), nullable=True)
+    ebay_short_description = db.Column(db.Text, nullable=True)
+    photo_url = db.Column(db.String(1000), nullable=True)
 
 
 streamlit_data = {}
