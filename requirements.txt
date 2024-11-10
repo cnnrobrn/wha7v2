@@ -1,7 +1,7 @@
 # requirements.txt for the SMS Clothing Search App
 
 # Flask for creating the web app
-Flask
+Flask==2.2.3
 
 # Twilio for handling incoming SMS and sending replies
 Twilio
