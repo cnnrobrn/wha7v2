@@ -10,13 +10,47 @@ from dotenv import load_dotenv
 from requests.auth import HTTPBasicAuth
 from pydantic import BaseModel
 import urllib.parse
-import string
-import random
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import create_engine, Column, Integer, String, ForeignKey
+from sqlalchemy.orm import relationship, sessionmaker
+
+app = Flask(__name__)
+
+
+DATABASE_URL = os.getenv('DATABASE_URL')
+
+app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db = SQLAlchemy(app)
+
+
+class PhoneNumber(db.Model):
+    __tablename__ = 'phone_numbers'
+    id = db.Column(db.Integer, primary_key=True)
+    phone_number = db.Column(db.String(20), unique=True, nullable=False)
+    outfits = db.relationship('Outfit', backref='phone_number', lazy=True)
+
+class Outfit(db.Model):
+    __tablename__ = 'outfits'
+    id = db.Column(db.Integer, primary_key=True)
+    phone_id = db.Column(db.Integer, db.ForeignKey('phone_numbers.id'), nullable=False)
+    description = db.Column(db.String(200), nullable=False)
+    items = db.relationship('Item', backref='outfit', lazy=True)
+
+class Item(db.Model):
+    __tablename__ = 'items'
+    id = db.Column(db.Integer, primary_key=True)
+    outfit_id = db.Column(db.Integer, db.ForeignKey('outfits.id'), nullable=False)
+    url = db.Column(db.String(500), nullable=False)
+    price = db.Column(db.String(50), nullable=True)
+    ebay_short_description = db.Column(db.String(200), nullable=True)
+    photo_url = db.Column(db.String(500), nullable=True)
 
 
 streamlit_data = {}
 
-app = Flask(__name__)
+
 
 
 class clothing(BaseModel):
@@ -99,85 +133,77 @@ client = OpenAI()
 @app.route("/sms", methods=['POST'])
 def sms_reply():
     # Extract incoming message information
-    print('Message Recieved')
     from_number = request.form.get('From')
     media_url = request.form.get('MediaUrl0')  # This will be the first image URL
 
-
     if media_url:        
         response = requests.get(media_url, auth=(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN))
-        print('Media Recieved')
-# Check the response to ensure it was successful
         if response.status_code == 200:
-            # Get the binary content of the image
             image_content = response.content
-            #print("image_content")
-            #print(image_content)
-
-            # Convert the binary content to base64 format
             base64_image = base64.b64encode(image_content).decode('utf-8')
-
-            # Create a data URI for the image
             base64_image_data = f"data:image/jpeg;base64,{base64_image}"
-
-            # Print the data URI or use it further
-            #print("Data URI for the image:")
-            #print(base64_image_data)
-
-            # Analyze the image using OpenAI to determine clothing items
             clothing_items = analyze_image_with_openai(base64_image_data)
-            print('Open AI Run')
-            links = {}
-            images= {}
-            shortDescriptions= {}
-            prices= {}
+            
+            # Search for eBay links
             ebay_access_token = ebay_oauth_flow()
-            # Search for the top ebay links for each detected clothing item
-            
-            
+            links = {}
+            images = {}
+            shortDescriptions = {}
+            prices = {}
             
             for item in clothing_items.Article:
-                ebay_list = search_ebay(item.Amazon_Search,ebay_access_token)
+                ebay_list = search_ebay(item.Amazon_Search, ebay_access_token)
                 links[item.Amazon_Search] = ebay_list['links'] 
                 images[item.Amazon_Search+"_image"] = ebay_list['images']    
                 shortDescriptions[item.Amazon_Search+"_shortdescription"] = ebay_list['shortDescription']    
                 prices[item.Amazon_Search+"_price"] = ebay_list['price']   
-            # Construct a response message with the links for each clothing item
+            
+            # Save to PostgreSQL
+            # Create or get the PhoneNumber
+            phone = PhoneNumber.query.filter_by(phone_number=from_number).first()
+            if not phone:
+                phone = PhoneNumber(phone_number=from_number)
+                db.session.add(phone)
+                db.session.commit()
+
+            # Create a new Outfit
+            outfit = Outfit(phone_id=phone.id, description="Outfit from image")
+            db.session.add(outfit)
+            db.session.commit()
+
+            # Add Items to the outfit
+            for (item, urls), (desc, name), (detail, desc_value), (pic, image) in zip(links.items(), images.items(), shortDescriptions.items(), prices.items()):
+                new_item = Item(
+                    outfit_id=outfit.id,
+                    url=urls[0] if urls else '',
+                    price=image,
+                    ebay_short_description=desc_value,
+                    photo_url=name[0] if name else ''
+                )
+                db.session.add(new_item)
+            
+            db.session.commit()
+
+            # Construct response message
             resp = MessagingResponse()
             for item, urls in links.items():
                 message = f"Top links for {item}:\n" 
                 for url in urls:
                     short_url = shorten_url(url)
                     message += short_url + "\n"
-                print('message ready')
                 try:
                     resp.message(message)
-                    print('message sent')
                 except Exception as e:
                     print(f"Error sending message: {e}")
                     resp.message("An error occurred while processing your request.")
-            #return str(resp)
-            if from_number not in streamlit_data:
-                streamlit_data[from_number] = {
-                    "clothes": []
-                }
-            clothes_data = {}
-            for (item, urls), (desc, name), (detail, desc), (pic, image) in zip(links.items(), images.items(),shortDescriptions.items(),prices.items()):
-                clothes_data[item] = {
-                    "urls": urls,
-                    "images": name,
-                    "shortDescription": desc,
-                    "price": image
-                }
-            streamlit_data[from_number]["clothes"].append(clothes_data)
             return str(resp)
         else:
             return "Error: Unable to fetch the image."
     else:
-        # Respond if no media is sent
         resp = MessagingResponse()
         resp.message("Please send a screenshot of a TikTok or Reel.")
         return str(resp)
+
 
 def analyze_image_with_openai(base64_image):
     try:
@@ -299,4 +325,5 @@ def shorten_url(long_url):
         return None
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000,debug=True)
+    db.create_all()
+    app.run(host="0.0.0.0", port=5000, debug=True)

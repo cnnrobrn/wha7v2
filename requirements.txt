@@ -26,3 +26,5 @@ Pillow
 python-dotenv
 
 
+flask_sqlalchemy
+sqlalchemy
