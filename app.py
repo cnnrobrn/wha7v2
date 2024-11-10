@@ -30,9 +30,9 @@ class PhoneNumber(db.Model):
     __tablename__ = 'phone_numbers'
     id = db.Column(db.Integer, primary_key=True)
     phone_number = db.Column(db.String(20), unique=True, nullable=False)
-    outfits = db.relationship('OutfitDB', backref='phone_number', lazy=True)
+    outfits = db.relationship('Outfit', backref='phone_number', lazy=True)
 
-class OutfitDB(db.Model):
+class Outfit(db.Model):
     __tablename__ = 'outfits'
     id = db.Column(db.Integer, primary_key=True)
     phone_id = db.Column(db.Integer, db.ForeignKey('phone_numbers.id'), nullable=False)
@@ -58,8 +58,8 @@ class clothing(BaseModel):
     Item: str
     Amazon_Search: str
 
-class Outfit(BaseModel):
-    Outfit:str
+class Outfits(BaseModel):
+    Outfits:str
     Article:list[clothing]
 
 # Configure OpenAI API key
@@ -168,14 +168,14 @@ def sms_reply():
                 db.session.commit()
 
             # Create a new Outfit
-            outfit = OutfitDB(phone_id=phone.id, description="Outfit from image")
+            outfit = Outfit(phone_id=phone.id, description="Outfit from image")
             db.session.add(outfit)
             db.session.commit()
 
             # Add Items to the outfit
             for (item, urls), (desc, name), (detail, desc_value), (pic, image) in zip(links.items(), images.items(), shortDescriptions.items(), prices.items()):
                 new_item = Item(
-                    outfit_id=OutfitDB.id,
+                    outfit_id=outfit.id,
                     url=urls[0] if urls else '',
                     price=image,
                     ebay_short_description=desc_value,
@@ -230,7 +230,7 @@ def analyze_image_with_openai(base64_image):
                     ],
                 }
             ],
-            response_format=Outfit,
+            response_format=Outfits,
             max_tokens=2000,
         )
         return response.choices[0].message.parsed
