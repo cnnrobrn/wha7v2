@@ -14,8 +14,12 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import create_engine, Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship, sessionmaker
 import psycopg2
+from flask_migrate import Migrate
+
 
 app = Flask(__name__)
+
+
 
 
 DATABASE_URL = os.getenv('DATABASE_URL')
@@ -52,6 +56,7 @@ class Item(db.Model):
 
 streamlit_data = {}
 
+migrate = Migrate(app, db)
 
 
 
