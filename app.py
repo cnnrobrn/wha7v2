@@ -48,6 +48,7 @@ class Outfit(db.Model):
     __tablename__ = 'outfits'
     id = db.Column(db.Integer, primary_key=True)
     phone_id = db.Column(db.Integer, db.ForeignKey('phone_numbers.id'), nullable=False)
+    image_data = db.Column(db.Text, nullable=True)  # New column to store the base64 encoded image
     description = db.Column(db.String(1000), nullable=False)
     items = db.relationship('Item', backref='outfit', lazy=True)
 
@@ -175,7 +176,7 @@ def sms_reply():
                 db.session.commit()
 
             # Create a new Outfit
-            outfit = Outfit(phone_id=phone.id, description="Outfit from image")
+            outfit = Outfit(phone_id=phone.id,image_data=base64_image_data ,description="Outfit from image")
             db.session.add(outfit)
             db.session.commit()
 
