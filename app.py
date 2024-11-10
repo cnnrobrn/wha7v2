@@ -183,10 +183,10 @@ def sms_reply():
                 for url, image, desc_value, price in zip(urls, images, desc_values, prices):
                     new_item = Item(
                         outfit_id=outfit.id,
-                        url=url.strip("{}"),
-                        price=price.strip("{}"),
-                        ebay_short_description=desc_value.strip("{}"),
-                        photo_url=image.strip("{}")
+                        url=url,
+                        price=price,
+                        ebay_short_description=desc_value,
+                        photo_url=image
                     )
                     db.session.add(new_item)
             
