@@ -14,7 +14,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import create_engine, Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship, sessionmaker
 import psycopg2
-from flask_migrate import Migrate
+from flask_migrate import Migrate, upgrade
 
 
 app = Flask(__name__)
@@ -59,7 +59,10 @@ streamlit_data = {}
 
 migrate = Migrate(app, db)
 
-
+@app.before_first_request
+def apply_migrations():
+    with app.app_context():
+        upgrade()  # Automatically apply migrations
 
 class clothing(BaseModel):
     Item: str
