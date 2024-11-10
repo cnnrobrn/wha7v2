@@ -180,16 +180,17 @@ def sms_reply():
 
             # Add Items to the outfit
             for (item, urls), (desc, name), (detail, desc_value), (pic, image) in zip(links.items(), images.items(), shortDescriptions.items(), prices.items()):
-                new_item = Item(
-                    outfit_id=outfit.id,
-                    url=urls,
-                    price=image,
-                    ebay_short_description=desc_value,
-                    photo_url=name
-                )
-                db.session.add(new_item)
+                for url, name, desc_value, image in zip(urls, name, desc_value, image):
+                    new_item = Item(
+                        outfit_id=outfit.id,
+                        url=urls,
+                        price=image,
+                        ebay_short_description=desc_value,
+                        photo_url=name
+                    )
+                    db.session.add(new_item)
             
-                db.session.commit()
+                    db.session.commit()
 
             # Construct response message
             resp = MessagingResponse()
