@@ -134,7 +134,6 @@ client = OpenAI()
 @app.route("/sms", methods=['POST'])
 def sms_reply():
     # Extract incoming message information
-    db.create_all()
     from_number = request.form.get('From')
     media_url = request.form.get('MediaUrl0')  # This will be the first image URL
 
@@ -169,14 +168,14 @@ def sms_reply():
                 db.session.commit()
 
             # Create a new Outfit
-            outfit = Outfit(phone_id=phone.id, description="Outfit from image")
+            outfit = OutfitDB(phone_id=phone.id, description="Outfit from image")
             db.session.add(outfit)
             db.session.commit()
 
             # Add Items to the outfit
             for (item, urls), (desc, name), (detail, desc_value), (pic, image) in zip(links.items(), images.items(), shortDescriptions.items(), prices.items()):
                 new_item = Item(
-                    outfit_id=outfit.id,
+                    outfit_id=OutfitDB.id,
                     url=urls[0] if urls else '',
                     price=image,
                     ebay_short_description=desc_value,
@@ -327,4 +326,5 @@ def shorten_url(long_url):
         return None
 
 if __name__ == "__main__":
+    db.create_all()
     app.run(host="0.0.0.0", port=5000, debug=True)
