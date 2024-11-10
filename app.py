@@ -139,6 +139,7 @@ client = OpenAI()
 
 @app.route("/sms", methods=['POST'])
 def sms_reply():
+    db.create_all()
     # Extract incoming message information
     from_number = request.form.get('From')
     media_url = request.form.get('MediaUrl0')  # This will be the first image URL
@@ -333,5 +334,5 @@ def shorten_url(long_url):
         return None
 
 if __name__ == "__main__":
-    db.create_all()
+
     app.run(host="0.0.0.0", port=5000, debug=True)
