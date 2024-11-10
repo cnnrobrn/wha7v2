@@ -30,7 +30,7 @@ class PhoneNumber(db.Model):
     __tablename__ = 'phone_numbers'
     id = db.Column(db.Integer, primary_key=True)
     phone_number = db.Column(db.String(20), unique=True, nullable=False)
-    outfits = db.relationship('Outfit', backref='phone_number', lazy=True)
+    outfits = db.relationship('OutfitDB', backref='phone_number', lazy=True)
 
 class OutfitDB(db.Model):
     __tablename__ = 'outfits'
