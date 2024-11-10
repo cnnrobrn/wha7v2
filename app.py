@@ -39,6 +39,7 @@ class Outfit(db.Model):
     description = db.Column(db.String(1000), nullable=False)
     items = db.relationship('Item', backref='outfit', lazy=True)
 
+
 class Item(db.Model):
     __tablename__ = 'items'
     id = db.Column(db.Integer, primary_key=True)
