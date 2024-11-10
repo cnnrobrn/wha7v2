@@ -189,7 +189,12 @@ def sms_reply():
                 )
                 db.session.add(new_item)
             
-            db.session.commit()
+                try:
+                    db.session.commit()
+                except Exception as e:
+                    db.session.rollback()  # Rollback the session in case of an error
+                    print(f"Error committing to the database: {e}")
+                    # Optionally, raise or handle the error appropriately here.
 
             # Construct response message
             resp = MessagingResponse()
