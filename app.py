@@ -179,14 +179,14 @@ def sms_reply():
             db.session.commit()
 
             # Add Items to the outfit
-            for (item, urls), (desc, name), (detail, desc_value), (pic, image) in zip(links.items(), images.items(), shortDescriptions.items(), prices.items()):
-                for url, name, desc_value, image in zip(urls, name, desc_value, image):
+            for (item, urls), (desc, images), (detail, desc_values), (pic, prices) in zip(links.items(), images.items(), shortDescriptions.items(), prices.items()):
+                for url, image, desc_value, price in zip(urls, images, desc_values, prices):
                     new_item = Item(
                         outfit_id=outfit.id,
-                        url=urls,
-                        price=image,
-                        ebay_short_description=desc_value,
-                        photo_url=name
+                        url=url.strip("{}"),
+                        price=price.strip("{}"),
+                        ebay_short_description=desc_value.strip("{}"),
+                        photo_url=image.strip("{}")
                     )
                     db.session.add(new_item)
             
