@@ -67,10 +67,6 @@ streamlit_data = {}
 
 migrate = Migrate(app, db)
 
-@app.before_first_request
-def apply_migrations():
-    with app.app_context():
-        upgrade()  # Automatically apply migrations
 
 class clothing(BaseModel):
     Item: str
@@ -142,6 +138,10 @@ Ensure that all items in the outfit are identified, including accessories like s
 client = OpenAI()
 
 @app.route("/sms", methods=['POST'])
+def apply_migrations():
+    with app.app_context():
+        upgrade()  # Automatically apply migrations
+
 def sms_reply():
     # Extract incoming message information
     from_number = request.form.get('From')
