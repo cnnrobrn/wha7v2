@@ -32,7 +32,7 @@ class PhoneNumber(db.Model):
     phone_number = db.Column(db.String(20), unique=True, nullable=False)
     outfits = db.relationship('Outfit', backref='phone_number', lazy=True)
 
-class Outfit(db.Model):
+class OutfitDB(db.Model):
     __tablename__ = 'outfits'
     id = db.Column(db.Integer, primary_key=True)
     phone_id = db.Column(db.Integer, db.ForeignKey('phone_numbers.id'), nullable=False)
