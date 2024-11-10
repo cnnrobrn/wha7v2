@@ -197,7 +197,8 @@ def sms_reply():
             for item, urls in links.items():
                 message = f"Top links for {item}:\n" 
                 for url in urls:
-                    message += url + "\n"
+                    short_url = shorten_url(url)
+                    message += short_url + "\n"
                 try:
                     resp.message(message)
                 except Exception as e:
@@ -288,7 +289,7 @@ def search_ebay(query,ebay_access_token):
         response.raise_for_status()  # Raise an HTTPError for bad responses
         response_data = response.json()
         items = response_data.get("itemSummaries", [])
-        links['links'] = [shorten_url(item.get("itemWebUrl")) for item in items]
+        links['links'] = [item.get("itemWebUrl") for item in items]
         links['images'] = [item.get("image").get("imageUrl") for item in items]
         links['shortDescription'] = [item.get("shortDescription", "") for item in items]
         links['price'] = [item.get("price", {}).get("value", "") for item in items]
