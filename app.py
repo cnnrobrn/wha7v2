@@ -30,7 +30,7 @@ EBAY_AFFILIATE_ID = os.getenv("EBAY_AFFILIATE_ID")
 EBAY_APP_ID = os.getenv("EBAY_APP_ID")
 EBAY_DEV_ID = os.getenv("EBAY_DEV_ID")
 EBAY_CERT_ID = os.getenv("EBAY_CERT_ID")
-DATABASE_URL = os.getenv('DATABASE_URL')
+DATABASE_URL="postgresql://postgres:jFioPwZyrXBJGwpuwnQjxKjmiRgbTKzH@junction.proxy.rlwy.net:55770/railway"
 
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
