@@ -28,3 +28,4 @@ python-dotenv
 
 flask_sqlalchemy
 sqlalchemy
+psycopg2

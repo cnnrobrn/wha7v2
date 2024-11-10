@@ -13,6 +13,7 @@ import urllib.parse
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import create_engine, Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship, sessionmaker
+import psycopg2
 
 app = Flask(__name__)
 
