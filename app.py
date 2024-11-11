@@ -23,6 +23,7 @@ app = Flask(__name__)
 
 # Configure OpenAI API key
 load_dotenv()
+URL_SHORTENER_URL = os.getenv("URL_SHORTENER_URL")
 TWILIO_ACCOUNT_SID=os.getenv('TWILIO_ACCOUNT_SID')
 TWILIO_AUTH_TOKEN=os.getenv('TWILIO_AUTH_TOKEN')
 API_KEY=os.getenv('OPENAI_API_KEY')
@@ -315,8 +316,6 @@ def retrieve(short_code):
 
 def shorten_url(long_url):
     # Define the endpoint URL (change port if necessary)
-    url = 'https://item.wha7.com/shorten'
-
     # Prepare the headers and payload
     headers = {'Content-Type': 'application/json'}
     payload = {
@@ -324,7 +323,7 @@ def shorten_url(long_url):
     }
 
     # Send a POST request
-    response = requests.post(url, headers=headers, data=json.dumps(payload))
+    response = requests.post(URL_SHORTENER_URL, headers=headers, data=json.dumps(payload))
 
     # Handle the response
     if response.status_code == 200:
