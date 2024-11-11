@@ -323,7 +323,7 @@ def shorten_url(long_url):
     }
 
     # Send a POST request
-    response = requests.post(URL_SHORTENER_URL, headers=headers, data=json.dumps(payload))
+    response = requests.post(f"HTTPS://{URL_SHORTENER_URL}", headers=headers, data=json.dumps(payload))
 
     # Handle the response
     if response.status_code == 200:
