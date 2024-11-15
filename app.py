@@ -195,6 +195,7 @@ def sms_reply():
 
             # Construct response message
             resp = MessagingResponse()
+            resp.message("Access all the outfits you've shared at feed.wha7.com")
             for item, urls in links.items():
                 message = f"Top links for {item}:\n" 
                 for url in urls:
