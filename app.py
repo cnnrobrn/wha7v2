@@ -210,7 +210,7 @@ def sms_reply():
             return "Error: Unable to fetch the image."
     else:
         resp = MessagingResponse()
-        resp.message("Please send a screenshot of a TikTok or Reel.")
+        resp.message("Please send a screenshot of a TikTok or Reel. You can access outfits you've already shared at feed.wha7.com")
         return str(resp)
 
 
