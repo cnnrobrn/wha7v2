@@ -163,7 +163,7 @@ def sms_reply():
                 ebay_list = search_ebay(item.Amazon_Search, ebay_access_token)
                 links[item.Amazon_Search] = ebay_list['links'] 
                 images[item.Amazon_Search+"_image"] = ebay_list['images']    
-                shortDescriptions[item.Amazon_Search+"_shortdescription"] = ebay_list['shortDescription']    
+                shortDescriptions[item.Amazon_Search+"_shortdescription"] = ebay_list['title']    
                 prices[item.Amazon_Search+"_price"] = ebay_list['price']   
             
             # Save to PostgreSQL
@@ -293,7 +293,7 @@ def search_ebay(query,ebay_access_token):
         items = response_data.get("itemSummaries", [])
         links['links'] = [item.get("itemWebUrl") for item in items]
         links['images'] = [item.get("image").get("imageUrl") for item in items]
-        links['shortDescription'] = [item.get("shortDescription", "") for item in items]
+        links['shortDescription'] = [item.get("title", "") for item in items]
         links['price'] = [item.get("price", {}).get("value", "") for item in items]
         return links
     except requests.exceptions.HTTPError as http_err:
