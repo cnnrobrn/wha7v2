@@ -163,7 +163,7 @@ def sms_reply():
                 ebay_list = search_ebay(item.Amazon_Search, ebay_access_token)
                 links[item.Amazon_Search] = ebay_list['links'] 
                 images[item.Amazon_Search+"_image"] = ebay_list['images']    
-                shortDescriptions[item.Amazon_Search+"_shortdescription"] = ebay_list['title']    
+                shortDescriptions[item.Amazon_Search+"_shortdescription"] = ebay_list['shortDescription']    
                 prices[item.Amazon_Search+"_price"] = ebay_list['price']   
             
             # Save to PostgreSQL
