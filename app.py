@@ -196,6 +196,7 @@ def sms_reply():
 
             # Construct response message
             resp = MessagingResponse()
+            resp.message("Access all the outfits you've shared at feed.wha7.com")
             for item, urls in links.items():
                 message = f"Top links for {item}:\n" 
                 for url in urls:
@@ -211,7 +212,7 @@ def sms_reply():
             return "Error: Unable to fetch the image."
     else:
         resp = MessagingResponse()
-        resp.message("Please send a screenshot of a TikTok or Reel.")
+        resp.message("Please send a screenshot of a TikTok or Reel. You can access outfits you've already shared at feed.wha7.com")
         return str(resp)
 
 
@@ -293,7 +294,7 @@ def search_ebay(query,ebay_access_token):
         items = response_data.get("itemSummaries", [])
         links['links'] = [item.get("itemWebUrl") for item in items]
         links['images'] = [item.get("image").get("imageUrl") for item in items]
-        links['shortDescription'] = [item.get("shortDescription", "") for item in items]
+        links['shortDescription'] = [item.get("title", "") for item in items]
         links['price'] = [item.get("price", {}).get("value", "") for item in items]
         return links
     except requests.exceptions.HTTPError as http_err:
