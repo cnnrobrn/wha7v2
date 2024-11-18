@@ -157,12 +157,24 @@ def sms_reply():
             
             for item in clothing_items.Article:
                 results = oxy_search(item.Amazon_Search)
-                item_id=Item.query.filter_by(description=item.Item).first()
+                item_id = Item.query.filter_by(description=item.Item).first()
                 if item_id:
                     for result in results:
-                        new_link = Link(item_id=item_id.id, url=result['url'], title=result['title'], photo_url=result['thumbnail'], price=result['price'], rating=result['rating'],reviews_count=result['reviews_count'],merchant_name=result['merchant_name'])
+                        if not result.get('url'):
+                            continue
+                        new_link = Link(
+                            item_id=item_id.id,
+                            url=result['url'],
+                            title=result['title'],
+                            photo_url=result['thumbnail'],
+                            price=result['price'],
+                            rating=result['rating'],
+                            reviews_count=result['reviews_count'],
+                            merchant_name=result['merchant_name']
+                        )
                         db.session.add(new_link)
-                        db.session.commit()
+                    db.session.commit()
+
 
 
             # Add Items to the outfit
