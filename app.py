@@ -139,7 +139,6 @@ client = OpenAI()
 
 @app.route("/sms", methods=['POST'])
 def sms_reply():
-    db.create_all()
     # Extract incoming message information
     from_number = request.form.get('From')
     media_url = request.form.get('MediaUrl0')  # This will be the first image URL
@@ -230,6 +229,8 @@ def oxy_search(query):
     # Structure payload.
     payload = {
     'source': 'google_shopping_search',
+    'domain':'com',
+    'pages': 1,
     'parse': True,
     'query': query
     }
@@ -310,4 +311,5 @@ def database_commit(clothing_items, from_number, base64_image_data):
     return None
 
 if __name__ == "__main__":
+    db.create_all()
     app.run(host="0.0.0.0", port=5000, debug=True)
