@@ -236,12 +236,20 @@ def oxy_search(query):
     }
 
     # Get response.
-    response = requests.request(
-        'POST',
-        'https://realtime.oxylabs.io/v1/queries',
-        auth=(OXY_USERNAME, OXY_PASSWORD), #Your credentials go here
-        json=payload,
-    )
+    print(f"Sending payload: {payload}")
+    try:
+        response = requests.request(
+            'POST',
+            'https://realtime.oxylabs.io/v1/queries',
+            auth=(OXY_USERNAME, OXY_PASSWORD),
+            json=payload,
+            timeout=10
+        )
+        print(f"Response received: {response.text}")
+    except requests.exceptions.RequestException as e:
+        print(f"Request failed: {e}")
+        raise
+
 
     # Instead of response with job status and results url, this will return the
     # JSON response with results.
