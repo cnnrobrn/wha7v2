@@ -159,7 +159,7 @@ def sms_reply():
                 results = oxy_search(item.Amazon_Search)
                 item_id=Item.query.filter_by(description=item.Item).first()
                 if item_id:
-                    for result in results['results']:
+                    for result in results:
                         new_link = Link(item_id=item_id.id, url=result['url'], title=result['title'], photo_url=result['thumbnail'], price=result['price'], rating=result['rating'],reviews_count=result['reviews_count'],merchant_name=result['merchant_name'])
                         db.session.add(new_link)
                         db.session.commit()
