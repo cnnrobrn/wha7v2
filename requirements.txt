@@ -31,3 +31,5 @@ sqlalchemy
 psycopg2
 
 Flask_Migrate
+re
+pprint
