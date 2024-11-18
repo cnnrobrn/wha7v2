@@ -311,7 +311,7 @@ def database_commit(clothing_items, from_number, base64_image_data):
     db.session.commit()
             
     for item in clothing_items.Article:
-        new_item = Item(outfit_id=outfit.id, description=item.Item,search)
+        new_item = Item(outfit_id=outfit.id, description=item.Item,search=item.Amazon_Search)
         db.session.add(new_item)
         db.session.commit()
         # for link in item['Amazon_Search']:
