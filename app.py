@@ -140,7 +140,6 @@ client = OpenAI()
 
 @app.route("/sms", methods=['POST'])
 def sms_reply():
-    db.create_all()
     # Extract incoming message information
     from_number = request.form.get('From')
     media_url = request.form.get('MediaUrl0')  # This will be the first image URL
@@ -155,27 +154,7 @@ def sms_reply():
 
             
             database_commit(clothing_items, from_number, base64_image_data)
-            
-            for item in clothing_items.Article:
-                results = oxy_search(item.Amazon_Search)
-                item_id = Item.query.filter_by(description=item.Item).first()
-                if item_id:
-                    for result in results:
-                        if not result.get('url'):
-                            continue
-                        new_link = Link(
-                            item_id=item_id.id,
-                            url=result['url'],
-                            title=result['title'],
-                            photo_url=result['thumbnail'],
-                            price=result['price'],
-                            rating=result['rating'],
-                            reviews_count=result['reviews_count'],
-                            merchant_name=result['merchant_name']
-                        )
-                        db.session.add(new_link)
-                    db.session.commit()
-
+        
 
 
             # Add Items to the outfit
@@ -227,53 +206,7 @@ def analyze_image_with_openai(base64_image):
         print(f"Error analyzing image with OpenAI: {e}")
         return None
 
-def oxy_search(query):
-    # Structure payload.
-    payload = {
-    'source': 'google_shopping_search',
-    'domain':'com',
-    'pages': 1,
-    'parse': True,
-    'query': query
-    }
 
-    # Get response.
-    print(f"Sending payload: {payload}")
-    try:
-        response = requests.request(
-            'POST',
-            'https://realtime.oxylabs.io/v1/queries',
-            auth=(OXY_USERNAME, OXY_PASSWORD),
-            json=payload,
-            timeout=10
-        )
-        print(f"Response received: {response.text}")
-    except requests.exceptions.RequestException as e:
-        print(f"Request failed: {e}")
-        raise
-
-
-    # Instead of response with job status and results url, this will return the
-    # JSON response with results.
-    data = response.json()
-    organic_results = data["results"][0]["content"]["results"]["organic"][:30]
-
-
-    structured_data = [
-    {
-        "pos": result.get("pos"),
-        "price": result.get("price"),
-        "title": result.get("title"),
-        "thumbnail": result.get("thumbnail"),
-        "url": result.get("url"),
-        "rating": result.get("rating"),
-        "reviews_count": result.get("reviews_count"),
-        "merchant_name": result.get("merchant", {}).get("name")
-    }
-    for result in organic_results
-    ]
-
-    return structured_data
 
 def shorten_url(long_url):
     # Define the endpoint URL (change port if necessary)
@@ -322,3 +255,5 @@ def database_commit(clothing_items, from_number, base64_image_data):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+    db.create_all()
+
