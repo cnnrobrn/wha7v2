@@ -57,6 +57,7 @@ class Item(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     outfit_id = db.Column(db.Integer, db.ForeignKey('outfits.id'), nullable=False)
     description = db.Column(db.Text, nullable=True)  # Change to Text to handle longer descriptions
+    search = db.Column(db.Text, nullable=True)  # Change to Text to handle longer descriptions
     links = db.relationship('Link', backref='item', lazy=True)
 
 class Link(db.Model):
@@ -139,6 +140,7 @@ client = OpenAI()
 
 @app.route("/sms", methods=['POST'])
 def sms_reply():
+    db.create_all()
     # Extract incoming message information
     from_number = request.form.get('From')
     media_url = request.form.get('MediaUrl0')  # This will be the first image URL
@@ -309,7 +311,7 @@ def database_commit(clothing_items, from_number, base64_image_data):
     db.session.commit()
             
     for item in clothing_items.Article:
-        new_item = Item(outfit_id=outfit.id, description=item.Item)
+        new_item = Item(outfit_id=outfit.id, description=item.Item,search)
         db.session.add(new_item)
         db.session.commit()
         # for link in item['Amazon_Search']:
@@ -319,5 +321,4 @@ def database_commit(clothing_items, from_number, base64_image_data):
     return None
 
 if __name__ == "__main__":
-    db.create_all()
     app.run(host="0.0.0.0", port=5000, debug=True)
