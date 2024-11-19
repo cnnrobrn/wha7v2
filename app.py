@@ -58,6 +58,7 @@ class Item(db.Model):
     outfit_id = db.Column(db.Integer, db.ForeignKey('outfits.id'), nullable=False)
     description = db.Column(db.Text, nullable=True)  # Change to Text to handle longer descriptions
     search = db.Column(db.Text, nullable=True)  # Change to Text to handle longer descriptions
+    processed_at =  db.Column(db.Float, nullable=True)
     links = db.relationship('Link', backref='item', lazy=True)
 
 class Link(db.Model):
@@ -244,7 +245,7 @@ def database_commit(clothing_items, from_number, base64_image_data):
     db.session.commit()
             
     for item in clothing_items.Article:
-        new_item = Item(outfit_id=outfit.id, description=item.Item,search=item.Amazon_Search)
+        new_item = Item(outfit_id=outfit.id, description=item.Item,search=item.Amazon_Search,processed_at=None)
         db.session.add(new_item)
         db.session.commit()
         # for link in item['Amazon_Search']:
