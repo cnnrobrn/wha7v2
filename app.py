@@ -150,7 +150,7 @@ def sms_reply():
         if response.status_code == 200:
             image_content = response.content
             base64_image = base64.b64encode(image_content).decode('utf-8')
-            process_response(base64_image)
+            process_response(base64_image,from_number)
 
             # Construct response message
             resp = MessagingResponse()
@@ -166,8 +166,9 @@ def sms_reply():
 
 @app.route("/ios",methods=['POST'])
 def ios_image():
-    image_content = request.args.get('image_content') 
-    process_response(image_content)
+    image_content = request.args.get('image_content')
+    from_number = request.args.get('from_number')
+    process_response(image_content,from_number)
     return None
 
 def analyze_image_with_openai(base64_image):
@@ -202,7 +203,7 @@ def analyze_image_with_openai(base64_image):
         print(f"Error analyzing image with OpenAI: {e}")
         return None
 
-def process_response(base64_image):
+def process_response(base64_image,from_number):
     base64_image_data = f"data:image/jpeg;base64,{base64_image}"
     clothing_items = analyze_image_with_openai(base64_image_data)        
     database_commit(clothing_items, from_number, base64_image_data)
