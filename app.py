@@ -154,13 +154,13 @@ def sms_reply():
 
             # Construct response message
             resp = MessagingResponse()
-            resp.message("Added! Access all the outfits you've shared at feed.wha7.com")
+            resp.message("Added! Access all the outfits you've shared on our app or after signing up via https://www.wha7.com/f/5f804b34-9f3a-4bd6-a9e5-bf21e2a9018d")
             return str(resp)
         else:
             return "Error: Unable to fetch the image."
     else:
         resp = MessagingResponse()
-        resp.message("Please send a screenshot of a TikTok or Reel. You can access outfits you've already shared at feed.wha7.com")
+        resp.message("Please send a screenshot of a TikTok or Reel. You can access outfits you've already shared on our app or after signing up via https://www.wha7.com/f/5f804b34-9f3a-4bd6-a9e5-bf21e2a9018d")
         return str(resp)
 
 
