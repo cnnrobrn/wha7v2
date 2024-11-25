@@ -149,19 +149,7 @@ def sms_reply():
         response = requests.get(media_url, auth=(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN))
         if response.status_code == 200:
             image_content = response.content
-            base64_image = base64.b64encode(image_content).decode('utf-8')
-            base64_image_data = f"data:image/jpeg;base64,{base64_image}"
-            clothing_items = analyze_image_with_openai(base64_image_data)
-
-            
-            database_commit(clothing_items, from_number, base64_image_data)
-        
-
-
-            # Add Items to the outfit
-                    # db.session.add(new_item)
-            
-                    # db.session.commit()
+            process_response(image_content)
 
             # Construct response message
             resp = MessagingResponse()
@@ -207,6 +195,11 @@ def analyze_image_with_openai(base64_image):
         print(f"Error analyzing image with OpenAI: {e}")
         return None
 
+def process_response(image_content):
+    base64_image = base64.b64encode(image_content).decode('utf-8')
+    base64_image_data = f"data:image/jpeg;base64,{base64_image}"
+    clothing_items = analyze_image_with_openai(base64_image_data)        
+    database_commit(clothing_items, from_number, base64_image_data)
 
 
 def shorten_url(long_url):
