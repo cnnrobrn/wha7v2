@@ -168,7 +168,7 @@ def sms_reply():
 def ios_image():
     # Get data from request body instead of args
     data = request.get_json()  # For JSON data
-    image_content = data.get('image_content').decode('utf-8')
+    image_content = data.get('image_content')
     from_number = format_phone_number(data.get('from_number'))
     process_response(image_content, from_number)
     return "success"  # Return a response
