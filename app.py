@@ -169,7 +169,7 @@ def ios_image():
     image_content = request.args.get('image_content')
     from_number = request.args.get('from_number')
     process_response(image_content,from_number)
-    return None
+    return "Success"
 
 def analyze_image_with_openai(base64_image):
     try:
