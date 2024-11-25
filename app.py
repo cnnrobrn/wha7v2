@@ -98,7 +98,7 @@ Amazon_Search: A detailed search query string that can be used on Amazon to find
 
 In your Amazon_Search details, include key details such as:
 - Gender
-- Color
+- Colorß
 - Shape
 - Cut
 - Material
@@ -162,6 +162,11 @@ def sms_reply():
         resp.message("Please send a screenshot of a TikTok or Reel. You can access outfits you've already shared at feed.wha7.com")
         return str(resp)
 
+
+@app.route("/ios",methods=['POST'])
+def ios_image():
+    image_content = request.args.get('image_content') 
+    process_response(image_content)
 
 def analyze_image_with_openai(base64_image):
     try:
