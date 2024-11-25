@@ -167,6 +167,7 @@ def sms_reply():
 def ios_image():
     image_content = request.args.get('image_content') 
     process_response(image_content)
+    return None
 
 def analyze_image_with_openai(base64_image):
     try:
