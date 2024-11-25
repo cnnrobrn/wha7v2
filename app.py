@@ -168,7 +168,8 @@ def sms_reply():
 def ios_image():
     image_content = request.args.get('image_content')
     from_number = request.args.get('from_number')
-    process_response(image_content,from_number)
+    phone = format_phone_number(from_number)
+    process_response(image_content,phone)
     return "Success"
 
 def analyze_image_with_openai(base64_image):
@@ -253,7 +254,12 @@ def database_commit(clothing_items, from_number, base64_image_data):
         #     db.session.add(new_link)
         #     db.session.commit()
     return None
-
+def format_phone_number(phone_number):
+    phone_number = phone_number.strip().replace("-", "").replace("(", "").replace(")", "").replace(" ", "").replace("+1", "")
+    if not phone_number.startswith("+1"):
+        phone_number = "+1" + phone_number
+    return phone_number
+    
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
     db.create_all()
