@@ -164,13 +164,14 @@ def sms_reply():
         return str(resp)
 
 
-@app.route("/ios",methods=['POST'])
+@app.route("/ios", methods=['POST'])
 def ios_image():
-    image_content = request.args.get('image_content')
-    from_number = request.args.get('from_number')
-    phone = format_phone_number(from_number)
-    process_response(image_content,phone)
-    return "Success"
+    # Get data from request body instead of args
+    data = request.get_json()  # For JSON data
+    image_content = data.get('image_content')
+    from_number = data.get('from_number')
+    process_response(image_content, from_number)
+    return "success"  # Return a response
 
 def analyze_image_with_openai(base64_image):
     try:
