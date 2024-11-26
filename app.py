@@ -227,7 +227,7 @@ def sms_reply():
             # Construct response message
             if(clothing_items.Purpose == 1):
                 resp = MessagingResponse()
-                resp.message(f"{clothing_items.Response}/n you can view the outfit on the Wha7 app. Join the waitlist at https://www.wha7.com/f/5f804b34-9f3a-4bd6-a9e5-bf21e2a9018d")
+                resp.message(f"{clothing_items.Response} You can view the outfit on the Wha7 app. Join the waitlist at https://www.wha7.com/f/5f804b34-9f3a-4bd6-a9e5-bf21e2a9018d")
                 return str(resp)
             elif(clothing_items.Purpose == 2):
                 resp = MessagingResponse()
