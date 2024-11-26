@@ -209,6 +209,7 @@ Output the Recommendations object as a JSON string."""
 
 client = OpenAI()
 
+
 @app.route("/sms", methods=['POST'])
 def sms_reply():
     # Extract incoming message information
