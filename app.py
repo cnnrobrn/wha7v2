@@ -280,7 +280,7 @@ def database_commit(clothing_items, from_number, base64_image_data):
     db.session.add(outfit)
     db.session.commit()
             
-    if clothing_items.Article[0].Item:
+    if clothing_items.Article != None:
         for item in clothing_items.Article:
             new_item = Item(outfit_id=outfit.id, description=item.Item, search=item.Amazon_Search, processed_at=None)
             db.session.add(new_item)
