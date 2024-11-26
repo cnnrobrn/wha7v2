@@ -212,7 +212,8 @@ def ios_image():
     from_number = format_phone_number(data.get('from_number'))
     process_response(image_content, from_number,text=None)
     return "success"  # Return a response
-def analyze_image_with_openai(base64_image=None,text=None):
+
+def analyze_text_with_openai(text=None):
     try:
         # Example of using OpenAI to generate a response about clothing items
         # Assuming OpenAI GPT-4 can analyze text data about images (would need further development for visual analysis)
@@ -284,7 +285,7 @@ def process_response(base64_image,from_number,text):
         clothing_items = analyze_image_with_openai(base64_image_data,text)
         database_commit(clothing_items, from_number, base64_image_data)
     else:
-        clothing_items = analyze_image_with_openai(base64_image=None,text=text)      
+        clothing_items = analyze_text_with_openai(text=text)      
     return clothing_items
 
 
