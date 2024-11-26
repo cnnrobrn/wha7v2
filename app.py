@@ -212,7 +212,36 @@ def ios_image():
     from_number = format_phone_number(data.get('from_number'))
     process_response(image_content, from_number,text=None)
     return "success"  # Return a response
-
+def analyze_image_with_openai(base64_image=None,text=None):
+    try:
+        # Example of using OpenAI to generate a response about clothing items
+        # Assuming OpenAI GPT-4 can analyze text data about images (would need further development for visual analysis)
+        response = client.beta.chat.completions.parse(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are an expert at structured data extraction. You will be given a photo and should convert it into the given structure."},
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": prompt,
+                        },
+                        {
+                            "type": "text",
+                            "text": f"The user sent the following text: {text}",
+                        },
+                    ],
+                }
+            ],
+            response_format=Outfits,
+            max_tokens=2000,
+        )
+        return response.choices[0].message.parsed
+    except Exception as e:
+        print(f"Error analyzing image with OpenAI: {e}")
+        return None
+    
 def analyze_image_with_openai(base64_image=None,text=None):
     try:
         # Example of using OpenAI to generate a response about clothing items
