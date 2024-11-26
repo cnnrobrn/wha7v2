@@ -185,7 +185,7 @@ def sms_reply():
 
 
 @app.route("/ios/consultant", methods=['POST'])
-def ios_image():
+def ios_consultant():
     # Get data from request body instead of args
     data = request.get_json()  # For JSON data
     image_content = data.get('image_content')
