@@ -84,6 +84,8 @@ class clothing(BaseModel):
 
 class Outfits(BaseModel):
     Outfits:str
+    Response:str
+    Purpose:int
     Article:list[clothing]
 
 
@@ -135,7 +137,15 @@ Instructions:
 
 Focus on providing as much detail as possible to uniquely identify each clothing item and accessory.
 Ensure that all items in the outfit are identified, including accessories like sunglasses, purses, earrings, shoes, etc.
+
+You will also be providing a 'response'. This will be the message back to the user and should be largely positive. If the user is asking for feedback constructive feedback should be provided on how the outfit can be improved. This should be done in a way that makes it seem like the user is your best friend.
+
+Determine which of the following the text is most likely to be about and reply with the corresponding number in the purpose field:
+- What clothes are in the image -> 1
+- An evaluation of the outfit including how it can be improved ->2
+- None of the above -> 3
 """
+
 
 client = OpenAI()
 
@@ -144,18 +154,28 @@ def sms_reply():
     # Extract incoming message information
     from_number = request.form.get('From')
     media_url = request.form.get('MediaUrl0')  # This will be the first image URL
+    text = request.form.get('Body')
 
     if media_url:        
         response = requests.get(media_url, auth=(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN))
         if response.status_code == 200:
             image_content = response.content
             base64_image = base64.b64encode(image_content).decode('utf-8')
-            process_response(base64_image,from_number)
+            clothing_items = process_response(base64_image,from_number,text)
 
             # Construct response message
-            resp = MessagingResponse()
-            resp.message("Added! Access all the outfits you've shared on our app or after signing up via https://www.wha7.com/f/5f804b34-9f3a-4bd6-a9e5-bf21e2a9018d")
-            return str(resp)
+            if(clothing_items.Purpose == 1):
+                resp = MessagingResponse()
+                resp.message(f"{clothing_items.Response}")
+                return str(resp)
+            elif(clothing_items.Purpose == 2):
+                resp = MessagingResponse()
+                resp.message(f"{clothing_items.Response}")
+                return str(resp)
+            elif(clothing_items.Purpose == 3):
+                resp = MessagingResponse()
+                resp.message("I'm sorry, I'm not sure how to respond to that. Can you retry?")
+                return str(resp)
         else:
             return "Error: Unable to fetch the image."
     else:
@@ -170,10 +190,10 @@ def ios_image():
     data = request.get_json()  # For JSON data
     image_content = data.get('image_content')
     from_number = format_phone_number(data.get('from_number'))
-    process_response(image_content, from_number)
+    process_response(image_content, from_number,text=None)
     return "success"  # Return a response
 
-def analyze_image_with_openai(base64_image):
+def analyze_image_with_openai(base64_image,text):
     try:
         # Example of using OpenAI to generate a response about clothing items
         # Assuming OpenAI GPT-4 can analyze text data about images (would need further development for visual analysis)
@@ -187,6 +207,10 @@ def analyze_image_with_openai(base64_image):
                         {
                             "type": "text",
                             "text": prompt,
+                        },
+                        {
+                            "type": "text",
+                            "text": f"The user sent the following text: {text}",
                         },
                         {
                             "type": "image_url",
@@ -205,10 +229,11 @@ def analyze_image_with_openai(base64_image):
         print(f"Error analyzing image with OpenAI: {e}")
         return None
 
-def process_response(base64_image,from_number):
+def process_response(base64_image,from_number,text):
     base64_image_data = f"data:image/jpeg;base64,{base64_image}"
-    clothing_items = analyze_image_with_openai(base64_image_data)        
+    clothing_items = analyze_image_with_openai(base64_image_data,text)        
     database_commit(clothing_items, from_number, base64_image_data)
+    return clothing_items
 
 
 def shorten_url(long_url):
