@@ -270,7 +270,7 @@ def ios_image():
     process_response(image_content, from_number,text=None)
     return "success"  # Return a response
 
-def analyze_text_with_openai(text=None, prompt=prompt,format=Outfits):
+def analyze_text_with_openai(text=None, true_prompt=prompt,format=Outfits):
     try:
         # Example of using OpenAI to generate a response about clothing items
         # Assuming OpenAI GPT-4 can analyze text data about images (would need further development for visual analysis)
@@ -283,7 +283,7 @@ def analyze_text_with_openai(text=None, prompt=prompt,format=Outfits):
                     "content": [
                         {
                             "type": "text",
-                            "text": prompt,
+                            "text": true_prompt,
                         },
                         {
                             "type": "text",
@@ -292,14 +292,14 @@ def analyze_text_with_openai(text=None, prompt=prompt,format=Outfits):
                     ],
                 }
             ],
-            response_format=Outfits,
+            response_format=format,
             max_tokens=2000,
         )
         return response.choices[0].message.parsed
     except Exception as e:
         print(f"Error analyzing image with OpenAI: {e}")
         return None   
-def analyze_image_with_openai(base64_image=None,text=None,prompt=prompt,format=Outfits):
+def analyze_image_with_openai(base64_image=None,text=None,true_prompt=prompt,format=Outfits):
     try:
         # Example of using OpenAI to generate a response about clothing items
         # Assuming OpenAI GPT-4 can analyze text data about images (would need further development for visual analysis)
@@ -312,7 +312,7 @@ def analyze_image_with_openai(base64_image=None,text=None,prompt=prompt,format=O
                     "content": [
                         {
                             "type": "text",
-                            "text": prompt,
+                            "text": true_prompt,
                         },
                         {
                             "type": "text",
@@ -327,7 +327,7 @@ def analyze_image_with_openai(base64_image=None,text=None,prompt=prompt,format=O
                     ],
                 }
             ],
-            response_format=Outfits,
+            response_format=format,
             max_tokens=2000,
         )
         return response.choices[0].message.parsed
