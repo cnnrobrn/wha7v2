@@ -280,10 +280,13 @@ def database_commit(clothing_items, from_number, base64_image_data):
     db.session.add(outfit)
     db.session.commit()
             
-    for item in clothing_items.Article:
-        new_item = Item(outfit_id=outfit.id, description=item.Item,search=item.Amazon_Search,processed_at=None)
-        db.session.add(new_item)
-        db.session.commit()
+    if clothing_items.Article:
+        for item in clothing_items.Article:
+            new_item = Item(outfit_id=outfit.id, description=item.Item, search=item.Amazon_Search, processed_at=None)
+            db.session.add(new_item)
+            db.session.commit()
+    else:
+        print("No items found in clothing_items.Article")
         # for link in item['Amazon_Search']:
         #     new_link = Link(item_id=new_item.id, url=link['url'], title=link['title'], photo_url=link['photo_url'], price=link['price'])
         #     db.session.add(new_link)
