@@ -93,7 +93,7 @@ class Outfits(BaseModel):
     Purpose:int
     Article:list[clothing]
 
-db.create_all()
+
 
 
 
@@ -212,6 +212,7 @@ client = OpenAI()
 @app.route("/sms", methods=['POST'])
 def sms_reply():
     # Extract incoming message information
+    db.create_all()
     from_number = request.form.get('From')
     media_url = request.form.get('MediaUrl0')  # This will be the first image URL
     text = request.form.get('Body')
