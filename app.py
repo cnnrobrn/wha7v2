@@ -78,15 +78,21 @@ class Link(db.Model):
 migrate = Migrate(app, db)
 
 
+
 class clothing(BaseModel):
     Item: str
     Amazon_Search: str
+
+class Recommendations(BaseModel):
+    Response:str
+    Recommendations:list[clothing]
 
 class Outfits(BaseModel):
     Outfits:str
     Response:str
     Purpose:int
     Article:list[clothing]
+
 
 
 
@@ -100,7 +106,7 @@ Amazon_Search: A detailed search query string that can be used on Amazon to find
 
 In your Amazon_Search details, include key details such as:
 - Gender
-- Colorß
+- Color
 - Shape
 - Cut
 - Material
@@ -131,7 +137,7 @@ Amazon_Search: women's silver hoop earrings with small diamonds sterling silver 
 Item: Men's Ray-Ban Aviator Sunglasses with Gold Frame and Green Lenses
 Amazon_Search: men's ray-ban aviator sunglasses gold frame green lenses classic pilot style UV protection
 
-Item: Women's Black Leather H&M Crossbody Purse with Gold Chain Strap
+Item: Men's Black Leather H&M Crossbody Purse with Gold Chain Strap
 Amazon_Search: women's black leather h&m crossbody purse gold chain strap small handbag trendy accessory
 Instructions:
 
@@ -146,6 +152,58 @@ Determine which of the following the text is most likely to be about and reply w
 - None of the above -> 3
 """
 
+recommendation_prompt ="""You are the best fashion and accessories finder in the world. When people share photos of outfits with you, you will identify each individual item in the outfit—including clothing and accessories—with as much detail as possible. 
+
+To create the Clothing objects, use the following guidelines:
+
+Item: The name of the item, including specific details.
+
+Amazon_Search: A detailed search query string that can be used on Amazon to find that exact item, incorporating all identifiable attributes. Include key details such as:
+
+Gender
+Color
+Shape
+Cut
+Material
+Pattern
+Branding (logos, brand names like Nike, Ralph Lauren, Uniqlo, H&M)
+Style descriptors (e.g., vintage, bohemian, athletic)
+Fit and size descriptors (e.g., slim fit, oversized, cropped)
+Occasion or use-case (e.g., formal, casual, outdoor)
+Type of accessory (e.g., shirt, jumper, dress, peacoat, sunglasses, purses, earrings, bracelets)
+IF A BRAND CAN NOT BE IDENTIFIED, SUGGESTING POTENTIAL BRANDS IS ACCEPTABLE.
+
+The Response field in the Recommendations class should be a message back to the user. This message should be largely positive. If the user is asking for feedback, constructive feedback should be provided on how the outfit can be improved. This should be done in a way that makes it seem like the user is your best friend. If the user does not ask how the outfit can be improved, comment on the vibes, but don't recommend suggestions!
+
+Example output:
+
+Python
+recommendations = Recommendations(
+    Response="Wow, you look amazing! That jacket is fire and those jeans fit you perfectly. Love the whole vibe!",
+    Recommendations=[
+        Clothing(
+            Item="Men's Black Nike Fleece Jacket with High Collar and Zip-Up Front",
+            Amazon_Search="men's black nike fleece jacket zip-up high collar sherpa relaxed fit athletic wear"
+        ),
+        Clothing(
+            Item="Men's Blue Slim Fit Jeans",
+            Amazon_Search="men's blue slim fit jeans denim stretch classic 5-pocket style casual wear"
+        ),
+        Clothing(
+            Item="Men's White Leather Sneakers",
+            Amazon_Search="men's white leather sneakers low top lace-up casual wear"
+        )
+    ]
+)
+
+print(recommendations.json())
+Use code with caution.
+
+Instructions:
+
+Focus on providing as much detail as possible to uniquely identify each clothing item and accessory.
+Ensure that all items in the outfit are identified, including accessories like sunglasses, purses, earrings, shoes, etc.
+Output the Recommendations object as a JSON string."""
 
 client = OpenAI()
 
@@ -190,17 +248,16 @@ def ios_consultant():
     image_content = data.get('image_content')
     text = data.get('text')
     from_number = format_phone_number(data.get('from_number'))
-    Clothing_Items = process_response(image_content, from_number, text)
+    Clothing_Items = process_response(image_content, from_number, text, prompt_text=recommendation_prompt, format=Recommendations)
     
     return jsonify({
         "response": Clothing_Items.Response,
-        "purpose": Clothing_Items.Purpose,
-        "articles": [
+        "recommendations": [
             {
                 "Item": article.Item,
                 "Amazon_Search": article.Amazon_Search
             } 
-            for article in (Clothing_Items.Article or [])
+            for article in (Clothing_Items.Recommendations or [])
         ]
     })
 
@@ -213,7 +270,7 @@ def ios_image():
     process_response(image_content, from_number,text=None)
     return "success"  # Return a response
 
-def analyze_text_with_openai(text=None):
+def analyze_text_with_openai(text=None, prompt=prompt,format=Outfits):
     try:
         # Example of using OpenAI to generate a response about clothing items
         # Assuming OpenAI GPT-4 can analyze text data about images (would need further development for visual analysis)
@@ -241,9 +298,8 @@ def analyze_text_with_openai(text=None):
         return response.choices[0].message.parsed
     except Exception as e:
         print(f"Error analyzing image with OpenAI: {e}")
-        return None
-    
-def analyze_image_with_openai(base64_image=None,text=None):
+        return None   
+def analyze_image_with_openai(base64_image=None,text=None,prompt=prompt,format=Outfits):
     try:
         # Example of using OpenAI to generate a response about clothing items
         # Assuming OpenAI GPT-4 can analyze text data about images (would need further development for visual analysis)
@@ -278,17 +334,14 @@ def analyze_image_with_openai(base64_image=None,text=None):
     except Exception as e:
         print(f"Error analyzing image with OpenAI: {e}")
         return None
-
-def process_response(base64_image,from_number,text):
+def process_response(base64_image,from_number,text,prompt_text=prompt,format=Outfits):
     if base64_image:
         base64_image_data = f"data:image/jpeg;base64,{base64_image}"
-        clothing_items = analyze_image_with_openai(base64_image_data,text)
+        clothing_items = analyze_image_with_openai(base64_image_data,text,prompt_text,format)
         database_commit(clothing_items, from_number, base64_image_data)
     else:
-        clothing_items = analyze_text_with_openai(text=text)      
+        clothing_items = analyze_text_with_openai(text=text,prompt=prompt_text,format=format)      
     return clothing_items
-
-
 def shorten_url(long_url):
     # Define the endpoint URL (change port if necessary)
     url = 'https://item.wha7.com/shorten'
@@ -307,8 +360,7 @@ def shorten_url(long_url):
         return(response.json().get('shortened_url'))
     else:
         print('Error:', response.json().get('error'))
-        return None
-    
+        return None   
 def database_commit(clothing_items, from_number, base64_image_data = None):
     # Extract the items from the parsed response
             # Save to PostgreSQL
