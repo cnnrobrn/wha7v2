@@ -254,7 +254,7 @@ def process_response(base64_image,from_number,text):
         base64_image_data = f"data:image/jpeg;base64,{base64_image}"
         clothing_items = analyze_image_with_openai(base64_image_data,text)
     else:
-        clothing_items = analyze_image_with_openai(base64_image_data=None,text=text)        
+        clothing_items = analyze_image_with_openai(base64_image=None,text=text)        
     database_commit(clothing_items, from_number, base64_image_data)
     return clothing_items
 
