@@ -186,16 +186,22 @@ def sms_reply():
 
 @app.route("/ios/consultant", methods=['POST'])
 def ios_consultant():
-    # Get data from request body instead of args
-    data = request.get_json()  # For JSON data
+    data = request.get_json()
     image_content = data.get('image_content')
     text = data.get('text')
     from_number = format_phone_number(data.get('from_number'))
-    Clothing_Items = process_response(image_content, from_number,text)
+    Clothing_Items = process_response(image_content, from_number, text)
+    
     return jsonify({
         "response": Clothing_Items.Response,
         "purpose": Clothing_Items.Purpose,
-        "articles": [article.dict() for article in Clothing_Items.Article]
+        "articles": [
+            {
+                "Item": article.Item,
+                "Amazon_Search": article.Amazon_Search
+            } 
+            for article in (Clothing_Items.Article or [])
+        ]
     })
 
 @app.route("/ios", methods=['POST'])
