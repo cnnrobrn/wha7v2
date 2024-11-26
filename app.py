@@ -189,9 +189,14 @@ def ios_consultant():
     # Get data from request body instead of args
     data = request.get_json()  # For JSON data
     image_content = data.get('image_content')
+    text = data.get('text')
     from_number = format_phone_number(data.get('from_number'))
-    Clothing_Items = process_response(image_content, from_number,text=None)
-    return Clothing_Items.Response  # Return a response
+    Clothing_Items = process_response(image_content, from_number,text)
+    return jsonify({
+        "response": Clothing_Items.Response,
+        "purpose": Clothing_Items.Purpose,
+        "articles": [article.dict() for article in Clothing_Items.Article]
+    })
 
 @app.route("/ios", methods=['POST'])
 def ios_image():
