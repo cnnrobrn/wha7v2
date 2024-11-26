@@ -93,6 +93,8 @@ class Outfits(BaseModel):
     Purpose:int
     Article:list[clothing]
 
+db.create_all()
+
 
 
 
@@ -403,7 +405,7 @@ def get_recommendation_id(item_description):
         # Handle error (e.g., log the error, return a default value)
         return None
 
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
-    db.create_all()
 
