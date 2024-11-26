@@ -255,7 +255,8 @@ def ios_consultant():
         "recommendations": [
             {
                 "Item": article.Item,
-                "Amazon_Search": article.Amazon_Search
+                "Amazon_Search": article.Amazon_Search,
+                "Recommendation_ID": get_recommendation_id(article.Item)
             } 
             for article in (Clothing_Items.Recommendations or [])
         ]
@@ -393,7 +394,15 @@ def format_phone_number(phone_number):
     if not phone_number.startswith("+1"):
         phone_number = "+1" + phone_number
     return phone_number
-    
+def get_recommendation_id(item_description):
+    flask_api_url = "https://access.wha7.com/rag_search"  # Replace with your actual URL
+    response = requests.post(flask_api_url, json={"item_description": item_description})
+    if response.status_code == 200:
+        return response.json()["item_id"]  # Assuming your API returns the item_id
+    else:
+        # Handle error (e.g., log the error, return a default value)
+        return None
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
     db.create_all()
