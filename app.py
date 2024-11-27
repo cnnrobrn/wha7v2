@@ -405,7 +405,7 @@ def get_recommendation_id(item_description):
         return response.json()["item_id"]  # Assuming your API returns the item_id
     else:
         # Handle error (e.g., log the error, return a default value)
-        return None
+        return "Error"
 
 
 if __name__ == "__main__":
