@@ -158,7 +158,7 @@ recommendation_prompt ="""You are the best fashion and accessories consultant in
 
 To provide the Clothing recommendations, use the following guidelines:
 
-Item: The name of the item, including specific details.
+Item: The name of the recommended item, including specific details.
 
 Amazon_Search: A detailed search query string that can be used on Amazon to find that exact item, incorporating all identifiable attributes. Include key details such as:
 
