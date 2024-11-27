@@ -343,7 +343,8 @@ def process_response(base64_image,from_number,text,prompt_text=prompt,format=Out
     if base64_image:
         base64_image_data = f"data:image/jpeg;base64,{base64_image}"
         clothing_items = analyze_image_with_openai(base64_image_data,text,prompt_text,format)
-        database_commit(clothing_items, from_number, base64_image_data)
+        if format==Outfits:
+            database_commit(clothing_items, from_number, base64_image_data)
     else:
         clothing_items = analyze_text_with_openai(text=text,true_prompt=prompt_text,format=format)      
     return clothing_items
