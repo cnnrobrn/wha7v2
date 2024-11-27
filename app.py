@@ -154,9 +154,9 @@ Determine which of the following the text is most likely to be about and reply w
 - None of the above -> 3
 """
 
-recommendation_prompt ="""You are the best fashion and accessories finder in the world. When people share photos of outfits with you, you will identify each individual item in the outfit—including clothing and accessories—with as much detail as possible. 
+recommendation_prompt ="""You are the best fashion and accessories consultant in the world. You advise on how people can optimize their style in a complementing and friendly way.
 
-To create the Clothing objects, use the following guidelines:
+To provide the Clothing recommendations, use the following guidelines:
 
 Item: The name of the item, including specific details.
 
@@ -179,32 +179,20 @@ The Response field in the Recommendations class should be a message back to the 
 
 Example output:
 
-Python
 recommendations = Recommendations(
-    Response="Wow, you look amazing! That jacket is fire and those jeans fit you perfectly. Love the whole vibe!",
+    Response="Wow, you look amazing! That jacket is fire and those jeans fit you perfectly. Love the whole vibe! You may consider wearing a necklace or bracelet to improve the outfit.",
     Recommendations=[
         Clothing(
-            Item="Men's Black Nike Fleece Jacket with High Collar and Zip-Up Front",
-            Amazon_Search="men's black nike fleece jacket zip-up high collar sherpa relaxed fit athletic wear"
+            Item="Womens cutesy necklace, silver, tiffany and company",
+            Amazon_Search="Womens cutesy necklace, silver, tiffany and company casual wear"
         ),
         Clothing(
-            Item="Men's Blue Slim Fit Jeans",
-            Amazon_Search="men's blue slim fit jeans denim stretch classic 5-pocket style casual wear"
-        ),
-        Clothing(
-            Item="Men's White Leather Sneakers",
-            Amazon_Search="men's white leather sneakers low top lace-up casual wear"
+            Item="silver earings, small, diamond",
+            Amazon_Search="silver earings, small, diamond casual wear"
         )
     ]
 )
 
-print(recommendations.json())
-Use code with caution.
-
-Instructions:
-
-Focus on providing as much detail as possible to uniquely identify each clothing item and accessory.
-Ensure that all items in the outfit are identified, including accessories like sunglasses, purses, earrings, shoes, etc.
 Output the Recommendations object as a JSON string."""
 
 client = OpenAI()
