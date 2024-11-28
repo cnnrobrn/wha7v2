@@ -180,7 +180,7 @@ The Response field in the Recommendations class should be a message back to the 
 Example output:
 
 recommendations = Recommendations(
-    Response="Wow, you look amazing! That jacket is fire and those jeans fit you perfectly. Love the whole vibe! You may consider wearing a necklace or bracelet to improve the outfit.",
+    Response="Wow, you look amazing! That jacket is fire and those jeans fit you perfectly. Love the whole vibe! You may consider wearing a necklace or bracelet to improve the outfit. Also your shoes don't match the outfit, consider wearing a pair of white sneakers.",
     Recommendations=[
         Clothing(
             Item="Womens cutesy necklace, silver, tiffany and company",
