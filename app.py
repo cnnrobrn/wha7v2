@@ -17,7 +17,7 @@ import psycopg2
 from flask_migrate import Migrate, upgrade
 import re
 from pprint import pprint
-import datetime
+from datetime import datetime, timezone
 
 
 app = Flask(__name__)
@@ -80,7 +80,7 @@ class ReferralCode(db.Model):
     phone_id = db.Column(db.Integer, db.ForeignKey('phone_numbers.id'), nullable=False)
     code = db.Column(db.String(10), unique=True, nullable=False)
     used_count = db.Column(db.Integer, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 class Referral(db.Model):
     __tablename__ = 'referrals'
@@ -88,7 +88,7 @@ class Referral(db.Model):
     referrer_id = db.Column(db.Integer, db.ForeignKey('phone_numbers.id'), nullable=False)
     referred_id = db.Column(db.Integer, db.ForeignKey('phone_numbers.id'), nullable=False)
     code_used = db.Column(db.String(10), db.ForeignKey('referral_codes.code'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 # Update PhoneNumber model
 class PhoneNumber(db.Model):
