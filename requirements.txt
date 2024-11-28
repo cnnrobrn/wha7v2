@@ -33,3 +33,7 @@ psycopg2
 flask_cors
 
 Flask_Migrate
+
+git+https://${GITHUB_TOKEN}@github.com/cnnrobrn/wha7-models.git@main
+asyncpg  # If using async database operations
+httpx    # If making async HTTP requests
