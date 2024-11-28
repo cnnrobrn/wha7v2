@@ -49,37 +49,9 @@ class Item(db.Model):
     processed_at =  db.Column(db.Float, nullable=True)
     links = db.relationship('Link', backref='item', lazy=True)
 
-class Link(db.Model):
-    __tablename__ = 'links'
-    id = db.Column(db.Integer, primary_key=True)
-    item_id = db.Column(db.Integer, db.ForeignKey('items.id'), nullable=False)
-    photo_url = db.Column(db.Text, nullable=True)  # Increased to accommodate long photo URLs
-    url = db.Column(db.String(2000), nullable=False)  # Increased to accommodate longer URLs
-    price = db.Column(db.String(200), nullable=True)  # Increase length if needed
-    title = db.Column(db.String(2000), nullable=False)  # Increased to accommodate longer URLs
-    rating = db.Column(db.Float, nullable=True)
-    reviews_count = db.Column(db.Integer, nullable=True)
-    merchant_name = db.Column(db.String(200), nullable=True)
-
 class ReferralCode(db.Model):
     __tablename__ = 'referral_codes'
-    id = db.Column(db.Integer, primary_key=True)
-    phone_id = db.Column(db.Integer, db.ForeignKey('phone_numbers.id'), nullable=False)
-    code = db.Column(db.String(10), unique=True, nullable=False)
-    used_count = db.Column(db.Integer, default=0)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-
-class PhoneNumber(db.Model):
-    __tablename__ = 'phone_numbers'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    phone_number = db.Column(db.String(20), unique=True, nullable=False)
-    is_activated = db.Column(db.Boolean, default=False)
-    outfits = db.relationship('Outfit', backref='phone_number', lazy=True)
-    referral_codes = db.relationship('ReferralCode', backref='owner', lazy=True)
-
-class ReferralCode(db.Model):
-    __tablename__ = 'referral_codes'
+    __table_args__ = {'extend_existing': True}  # Add this line
     
     id = db.Column(db.Integer, primary_key=True)
     phone_id = db.Column(db.Integer, db.ForeignKey('phone_numbers.id'), nullable=False)
@@ -89,6 +61,7 @@ class ReferralCode(db.Model):
 
 class Referral(db.Model):
     __tablename__ = 'referrals'
+    __table_args__ = {'extend_existing': True}  # Add this line
     
     id = db.Column(db.Integer, primary_key=True)
     referrer_id = db.Column(db.Integer, db.ForeignKey('phone_numbers.id'), nullable=False)
@@ -96,14 +69,50 @@ class Referral(db.Model):
     code_used = db.Column(db.String(10), db.ForeignKey('referral_codes.code'), nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
+class PhoneNumber(db.Model):
+    __tablename__ = 'phone_numbers'
+    __table_args__ = {'extend_existing': True}  # Add this line
+    
+    id = db.Column(db.Integer, primary_key=True)
+    phone_number = db.Column(db.String(20), unique=True, nullable=False)
+    is_activated = db.Column(db.Boolean, default=False)
+    outfits = db.relationship('Outfit', backref='phone_number', lazy=True)
+    referral_codes = db.relationship('ReferralCode', backref='owner', lazy=True)
+
 class Outfit(db.Model):
     __tablename__ = 'outfits'
+    __table_args__ = {'extend_existing': True}  # Add this line
     
     id = db.Column(db.Integer, primary_key=True)
     phone_id = db.Column(db.Integer, db.ForeignKey('phone_numbers.id'), nullable=False)
     image_data = db.Column(db.Text, nullable=True)
     description = db.Column(db.String(1000), nullable=False)
     items = db.relationship('Item', backref='outfit', lazy=True)
+
+class Item(db.Model):
+    __tablename__ = 'items'
+    __table_args__ = {'extend_existing': True}  # Add this line
+    
+    id = db.Column(db.Integer, primary_key=True)
+    outfit_id = db.Column(db.Integer, db.ForeignKey('outfits.id'), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    search = db.Column(db.Text, nullable=True)
+    processed_at = db.Column(db.Float, nullable=True)
+    links = db.relationship('Link', backref='item', lazy=True)
+
+class Link(db.Model):
+    __tablename__ = 'links'
+    __table_args__ = {'extend_existing': True}  # Add this line
+    
+    id = db.Column(db.Integer, primary_key=True)
+    item_id = db.Column(db.Integer, db.ForeignKey('items.id'), nullable=False)
+    photo_url = db.Column(db.Text, nullable=True)
+    url = db.Column(db.String(2000), nullable=False)
+    price = db.Column(db.String(200), nullable=True)
+    title = db.Column(db.String(2000), nullable=False)
+    rating = db.Column(db.Float, nullable=True)
+    reviews_count = db.Column(db.Integer, nullable=True)
+    merchant_name = db.Column(db.String(200), nullable=True)
 
 migrate = Migrate(app, db)
 
