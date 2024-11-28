@@ -5,67 +5,59 @@ from openai import OpenAI
 import os
 import json
 import base64
-import os
 from dotenv import load_dotenv
-from requests.auth import HTTPBasicAuth
 from pydantic import BaseModel
 import urllib.parse
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey
-from sqlalchemy.orm import relationship, sessionmaker
 import psycopg2
-from flask_migrate import Migrate, upgrade
-import re
-from pprint import pprint
+from flask_migrate import Migrate
 from datetime import datetime, timezone
 from flask_cors import CORS
-from wha7_models import Base, init_db, PhoneNumber, Outfit, Item, Link
-from flask_sqlalchemy import SQLAlchemy
+from wha7_models import Base, init_db, PhoneNumber, Outfit, Item, Link, ReferralCode, Referral
 
 app = Flask(__name__)
-db = SQLAlchemy()
 CORS(app)
 
-
-
-# Configure OpenAI API key
+# Load environment variables
 load_dotenv()
-TWILIO_ACCOUNT_SID=os.getenv('TWILIO_ACCOUNT_SID')
-TWILIO_AUTH_TOKEN=os.getenv('TWILIO_AUTH_TOKEN')
-API_KEY=os.getenv('OPENAI_API_KEY')
-DATABASE_URL= os.getenv("DATABASE_URL")
-OXY_USERNAME= os.getenv("OXY_USERNAME")
-OXY_PASSWORD= os.getenv("OXY_PASSWORD")
+TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
+TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
+API_KEY = os.getenv('OPENAI_API_KEY')
+DATABASE_URL = os.getenv("DATABASE_URL")
+OXY_USERNAME = os.getenv("OXY_USERNAME")
+OXY_PASSWORD = os.getenv("OXY_PASSWORD")
 
+# Configure SQLAlchemy
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Initialize database
-engine, _ = init_db()
-for cls in Base._decl_class_registry.values():
-    if hasattr(cls, '__tablename__'):
-        cls.__table__.info['bind_key'] = None
+# Initialize SQLAlchemy with the app
+db = SQLAlchemy(app)
 
-db.init_app(app)
+# Initialize database engine from wha7_models
+engine, session_factory = init_db()
 
+# Initialize migrations
+migrate = Migrate(app, db)
 
+# Create all tables
+with app.app_context():
+    db.create_all()
+
+# Your pydantic models remain the same
 class clothing(BaseModel):
     Item: str
     Amazon_Search: str
 
 class Recommendations(BaseModel):
-    Response:str
-    Recommendations:list[clothing]
+    Response: str
+    Recommendations: list[clothing]
 
 class Outfits(BaseModel):
-    Outfits:str
-    Response:str
-    Purpose:int
-    Article:list[clothing]
-
-
-
-
+    Outfits: str
+    Response: str
+    Purpose: int
+    Article: list[clothing]
 
 
 EBAY_ENDPOINT = "https://api.ebay.com/buy/browse/v1/item_summary/search?q="
