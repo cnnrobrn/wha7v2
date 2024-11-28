@@ -73,7 +73,30 @@ class Link(db.Model):
     reviews_count = db.Column(db.Integer, nullable=True)
     merchant_name = db.Column(db.String(200), nullable=True)
 
+class ReferralCode(db.Model):
+    __tablename__ = 'referral_codes'
+    id = db.Column(db.Integer, primary_key=True)
+    phone_id = db.Column(db.Integer, db.ForeignKey('phone_numbers.id'), nullable=False)
+    code = db.Column(db.String(10), unique=True, nullable=False)
+    used_count = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+class Referral(db.Model):
+    __tablename__ = 'referrals'
+    id = db.Column(db.Integer, primary_key=True)
+    referrer_id = db.Column(db.Integer, db.ForeignKey('phone_numbers.id'), nullable=False)
+    referred_id = db.Column(db.Integer, db.ForeignKey('phone_numbers.id'), nullable=False)
+    code_used = db.Column(db.String(10), db.ForeignKey('referral_codes.code'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+# Update PhoneNumber model
+class PhoneNumber(db.Model):
+    __tablename__ = 'phone_numbers'
+    id = db.Column(db.Integer, primary_key=True)
+    phone_number = db.Column(db.String(20), unique=True, nullable=False)
+    is_activated = db.Column(db.Boolean, default=False)
+    outfits = db.relationship('Outfit', backref='phone_number', lazy=True)
+    referral_codes = db.relationship('ReferralCode', backref='owner', lazy=True)
 
 migrate = Migrate(app, db)
 
