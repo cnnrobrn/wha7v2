@@ -17,6 +17,7 @@ import psycopg2
 from flask_migrate import Migrate, upgrade
 import re
 from pprint import pprint
+import datetime
 
 
 app = Flask(__name__)
