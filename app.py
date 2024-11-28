@@ -18,9 +18,11 @@ from flask_migrate import Migrate, upgrade
 import re
 from pprint import pprint
 from datetime import datetime, timezone
+from flask_cors import CORS
 
 
 app = Flask(__name__)
+CORS(app)
 
 
 
@@ -37,22 +39,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
-
-
-class PhoneNumber(db.Model):
-    __tablename__ = 'phone_numbers'
-    id = db.Column(db.Integer, primary_key=True)
-    phone_number = db.Column(db.String(20), unique=True, nullable=False)
-    outfits = db.relationship('Outfit', backref='phone_number', lazy=True)
-
-class Outfit(db.Model):
-    __tablename__ = 'outfits'
-    id = db.Column(db.Integer, primary_key=True)
-    phone_id = db.Column(db.Integer, db.ForeignKey('phone_numbers.id'), nullable=False)
-    image_data = db.Column(db.Text, nullable=True)  # New column to store the base64 encoded image
-    description = db.Column(db.String(1000), nullable=False)
-    items = db.relationship('Item', backref='outfit', lazy=True)
-    
+  
 class Item(db.Model):
     __tablename__ = 'items'
     id = db.Column(db.Integer, primary_key=True)
@@ -82,22 +69,41 @@ class ReferralCode(db.Model):
     used_count = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
+class PhoneNumber(db.Model):
+    __tablename__ = 'phone_numbers'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    phone_number = db.Column(db.String(20), unique=True, nullable=False)
+    is_activated = db.Column(db.Boolean, default=False)
+    outfits = db.relationship('Outfit', backref='phone_number', lazy=True)
+    referral_codes = db.relationship('ReferralCode', backref='owner', lazy=True)
+
+class ReferralCode(db.Model):
+    __tablename__ = 'referral_codes'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    phone_id = db.Column(db.Integer, db.ForeignKey('phone_numbers.id'), nullable=False)
+    code = db.Column(db.String(10), unique=True, nullable=False)
+    used_count = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
 class Referral(db.Model):
     __tablename__ = 'referrals'
+    
     id = db.Column(db.Integer, primary_key=True)
     referrer_id = db.Column(db.Integer, db.ForeignKey('phone_numbers.id'), nullable=False)
     referred_id = db.Column(db.Integer, db.ForeignKey('phone_numbers.id'), nullable=False)
     code_used = db.Column(db.String(10), db.ForeignKey('referral_codes.code'), nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
-# Update PhoneNumber model
-class PhoneNumber(db.Model):
-    __tablename__ = 'phone_numbers'
+class Outfit(db.Model):
+    __tablename__ = 'outfits'
+    
     id = db.Column(db.Integer, primary_key=True)
-    phone_number = db.Column(db.String(20), unique=True, nullable=False)
-    is_activated = db.Column(db.Boolean, default=False)
-    outfits = db.relationship('Outfit', backref='phone_number', lazy=True)
-    referral_codes = db.relationship('ReferralCode', backref='owner', lazy=True)
+    phone_id = db.Column(db.Integer, db.ForeignKey('phone_numbers.id'), nullable=False)
+    image_data = db.Column(db.Text, nullable=True)
+    description = db.Column(db.String(1000), nullable=False)
+    items = db.relationship('Item', backref='outfit', lazy=True)
 
 migrate = Migrate(app, db)
 
