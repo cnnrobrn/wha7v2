@@ -13,7 +13,9 @@ import psycopg2
 from flask_migrate import Migrate
 from datetime import datetime, timezone
 from flask_cors import CORS
-from wha7_models import Base, init_db, PhoneNumber, Outfit, Item, Link, ReferralCode, Referral
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from wha7_models import db, PhoneNumber, Outfit, Item, Link, ReferralCode, Referral
 
 app = Flask(__name__)
 CORS(app)
@@ -31,19 +33,13 @@ OXY_PASSWORD = os.getenv("OXY_PASSWORD")
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Initialize SQLAlchemy with the app
-db = SQLAlchemy(app)
-
-# Initialize database engine from wha7_models
-engine, session_factory = init_db()
-
-# Initialize migrations
-migrate = Migrate(app, db)
+# Initialize the shared db instance with this app
+db.init_app(app)
 
 # Create all tables
 with app.app_context():
     db.create_all()
-
+    
 # Your pydantic models remain the same
 class clothing(BaseModel):
     Item: str
