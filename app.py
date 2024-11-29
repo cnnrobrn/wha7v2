@@ -1,23 +1,26 @@
+# Framework imports
 from flask import Flask, request, jsonify, redirect
+from flask_cors import CORS
+from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
+
+# Third-party imports
 from twilio.twiml.messaging_response import MessagingResponse
-import requests
 from openai import OpenAI
-import os
+from pydantic import BaseModel
+import requests
 import json
 import base64
-from dotenv import load_dotenv
-from pydantic import BaseModel
+import os
 import urllib.parse
-from flask_sqlalchemy import SQLAlchemy
 import psycopg2
-from flask_migrate import Migrate
 from datetime import datetime, timezone
-from flask_cors import CORS
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-from wha7_models import PhoneNumber, Outfit, Item, Link, ReferralCode, Referral
+from dotenv import load_dotenv
 
-# Create Flask app
+# wha7_models imports
+from wha7_models import init_db, PhoneNumber, Outfit, Item, Link, ReferralCode, Referral
+
+# Create Flask app and db instance
 app = Flask(__name__)
 CORS(app)
 
@@ -34,22 +37,17 @@ OXY_PASSWORD = os.getenv("OXY_PASSWORD")
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Create db instance
-db = SQLAlchemy(app)
+# Initialize SQLAlchemy
+db = SQLAlchemy()
+db.init_app(app)
 
 # Initialize database engine from wha7_models
 engine, session_factory = init_db()
 
-# Create all tables
+# Create all tables and initialize migrations
 with app.app_context():
     db.create_all()
-
-# Initialize migrations
-migrate = Migrate(app, db)
-
-# Create all tables
-with app.app_context():
-    db.create_all()
+    migrate = Migrate(app, db)
     
 # Your pydantic models remain the same
 class clothing(BaseModel):
