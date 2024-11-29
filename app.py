@@ -17,6 +17,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from wha7_models import PhoneNumber, Outfit, Item, Link, ReferralCode, Referral
 
+# Create Flask app
 app = Flask(__name__)
 CORS(app)
 
@@ -33,8 +34,18 @@ OXY_PASSWORD = os.getenv("OXY_PASSWORD")
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Initialize the shared db instance with this app
-db.init_app(app)
+# Create db instance
+db = SQLAlchemy(app)
+
+# Initialize database engine from wha7_models
+engine, session_factory = init_db()
+
+# Create all tables
+with app.app_context():
+    db.create_all()
+
+# Initialize migrations
+migrate = Migrate(app, db)
 
 # Create all tables
 with app.app_context():
