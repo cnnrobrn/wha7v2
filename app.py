@@ -325,25 +325,29 @@ def shorten_url(long_url):
 
 def database_commit(clothing_items, from_number, base64_image_data = None):
     with app.app_context():
-        # Create or get the PhoneNumber
-        phone = PhoneNumber.query.filter_by(phone_number=from_number).first()
-        if not phone:
-            phone = PhoneNumber(phone_number=from_number)
-            db.session.add(phone)
-            db.session.commit()
+        Session = session_factory()
+        try:
+            # Create or get the PhoneNumber
+            phone = Session.query(PhoneNumber).filter_by(phone_number=from_number).first()
+            if not phone:
+                phone = PhoneNumber(phone_number=from_number)
+                Session.add(phone)
+                Session.commit()
 
-        # Create a new Outfit
-        outfit = Outfit(phone_id=phone.id, image_data=base64_image_data, description="Outfit from image")
-        db.session.add(outfit)
-        db.session.commit()
-                
-        if clothing_items.Article is not None:
-            for item in clothing_items.Article:
-                new_item = Item(outfit_id=outfit.id, description=item.Item, search=item.Amazon_Search, processed_at=None)
-                db.session.add(new_item)
-                db.session.commit()
-        else:
-            print("No items found in clothing_items.Article")
+            # Create a new Outfit
+            outfit = Outfit(phone_id=phone.id, image_data=base64_image_data, description="Outfit from image")
+            Session.add(outfit)
+            Session.commit()
+                    
+            if clothing_items.Article is not None:
+                for item in clothing_items.Article:
+                    new_item = Item(outfit_id=outfit.id, description=item.Item, search=item.Amazon_Search, processed_at=None)
+                    Session.add(new_item)
+                    Session.commit()
+            else:
+                print("No items found in clothing_items.Article")
+        finally:
+            Session.close()
             
 def format_phone_number(phone_number):
     phone_number = phone_number.strip().replace("-", "").replace("(", "").replace(")", "").replace(" ", "").replace("+1", "")
