@@ -313,8 +313,9 @@ def shorten_url(long_url):
     else:
         print('Error:', response.json().get('error'))
         return None   
+
 def database_commit(clothing_items, from_number, base64_image_data = None):
-    with app.app_context():  # Ensure we're in app context
+    with app.app_context():
         # Create or get the PhoneNumber
         phone = PhoneNumber.query.filter_by(phone_number=from_number).first()
         if not phone:
