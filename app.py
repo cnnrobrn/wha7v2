@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from flask_cors import CORS
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from wha7_models import db, PhoneNumber, Outfit, Item, Link, ReferralCode, Referral
+from wha7_models import PhoneNumber, Outfit, Item, Link, ReferralCode, Referral
 
 app = Flask(__name__)
 CORS(app)
