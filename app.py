@@ -367,16 +367,7 @@ def get_recommendation_id(item_description):
     else:
         # Handle error (e.g., log the error, return a default value)
         return "Error"
-def init_instagram_api():
-    """Initialize Instagram API client"""
-    try:
-        api = Client(INSTAGRAM_USERNAME, INSTAGRAM_PASSWORD)
-        return api
-    except Exception as e:
-        print(f"Error initializing Instagram API: {e}")
-        return None
-
-def get_unread_messages(api):
+def get_unread_messages():
     """Fetch unread direct messages"""
     try:
         url = f"https://graph.facebook.com/v18.0/{INSTAGRAM_BUSINESS_ACCOUNT_ID}/messages"
@@ -437,6 +428,8 @@ def verify_webhook():
     token = request.args.get('hub.verify_token')
     challenge = request.args.get('hub.challenge')
 
+    print(f"Received verification request - Mode: {mode}, Token: {token}, Challenge: {challenge}")
+
     # Check if mode and token are in the request
     if mode and token:
         # Check the mode and token sent match your verify token
@@ -446,55 +439,61 @@ def verify_webhook():
             return challenge
         else:
             # Respond with '403 Forbidden' if verify tokens do not match
+            print("Verification failed - token mismatch")
             return jsonify({'error': 'Verification failed'}), 403
 
+    print("Invalid verification request")
     return jsonify({'error': 'Invalid verification request'}), 400
 
 @app.route("/instagram_webhook", methods=['POST'])
 def handle_instagram_messages():
     """Handle incoming Instagram messages webhook"""
     try:
-        api = init_instagram_api()
-        if not api:
-            return jsonify({'error': 'Failed to initialize Instagram API'}), 500
+        # Get the request body
+        webhook_data = request.json
+        print(f"Received webhook data: {json.dumps(webhook_data, indent=2)}")
 
-        # Get unread messages
-        messages = get_unread_messages(api)
-        
-        for message_data in messages:
-            # Process message
-            processed_message = process_instagram_message(message_data)
-            if not processed_message:
-                continue
-                
-            from_id = processed_message['from_id']
-            text = processed_message['text']
-            media_url = processed_message['media_url']
-            
-            # If there's media, process it similar to the SMS webhook
-            if media_url:
-                response = requests.get(media_url)
-                if response.status_code == 200:
-                    image_content = response.content
-                    base64_image = base64.b64encode(image_content).decode('utf-8')
+        # Check if this is a message event
+        if webhook_data.get('object') == 'instagram' and webhook_data.get('entry'):
+            for entry in webhook_data['entry']:
+                for messaging in entry.get('messaging', []):
+                    sender_id = messaging.get('sender', {}).get('id')
+                    message = messaging.get('message', {})
                     
-                    # Use the existing process_response function
-                    clothing_items = process_response(base64_image, from_id, text)
+                    if not sender_id or not message:
+                        continue
+
+                    text = message.get('text', '')
+                    attachments = message.get('attachments', [])
                     
-                    # Send response based on purpose
-                    if clothing_items.Purpose == 1:
-                        reply_message = f"{clothing_items.Response} You can view the outfit on the Wha7 app. Join the waitlist at https://www.wha7.com/f/5f804b34-9f3a-4bd6-a9e5-bf21e2a9018d"
-                    elif clothing_items.Purpose == 2:
-                        reply_message = clothing_items.Response
+                    # If there's media, process it similar to the SMS webhook
+                    if attachments:
+                        for attachment in attachments:
+                            if attachment.get('type') == 'image':
+                                media_url = attachment.get('payload', {}).get('url')
+                                if media_url:
+                                    response = requests.get(media_url)
+                                    if response.status_code == 200:
+                                        image_content = response.content
+                                        base64_image = base64.b64encode(image_content).decode('utf-8')
+                                        
+                                        # Use the existing process_response function
+                                        clothing_items = process_response(base64_image, sender_id, text)
+                                        
+                                        # Send response based on purpose
+                                        if clothing_items.Purpose == 1:
+                                            reply_message = f"{clothing_items.Response} You can view the outfit on the Wha7 app. Join the waitlist at https://www.wha7.com/f/5f804b34-9f3a-4bd6-a9e5-bf21e2a9018d"
+                                        elif clothing_items.Purpose == 2:
+                                            reply_message = clothing_items.Response
+                                        else:
+                                            reply_message = "I'm sorry, I'm not sure how to respond to that. Can you retry?"
+                                        
+                                        # Send reply
+                                        send_instagram_reply(sender_id, reply_message)
                     else:
-                        reply_message = "I'm sorry, I'm not sure how to respond to that. Can you retry?"
-                    
-                    # Send reply
-                    send_instagram_reply(from_id, reply_message)
-            else:
-                # Handle text-only messages
-                reply_message = "Please send a screenshot of a TikTok or Reel. You can access outfits you've already shared on our app or after signing up via https://www.wha7.com/f/5f804b34-9f3a-4bd6-a9e5-bf21e2a9018d"
-                send_instagram_reply(from_id, reply_message)
+                        # Handle text-only messages
+                        reply_message = "Please send a screenshot of a TikTok or Reel. You can access outfits you've already shared on our app or after signing up via https://www.wha7.com/f/5f804b34-9f3a-4bd6-a9e5-bf21e2a9018d"
+                        send_instagram_reply(sender_id, reply_message)
         
         return jsonify({'status': 'success'}), 200
     
