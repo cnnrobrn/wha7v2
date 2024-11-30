@@ -461,100 +461,103 @@ def handle_instagram_messages():
             for entry in webhook_data['entry']:
                 print("3. Processing entry")
                 
-                # Check if messaging exists in the entry
-                if 'messaging' not in entry:
+                messaging_list = entry.get('messaging', [])
+                if not messaging_list:
                     print("No messaging field found in entry")
                     continue
                     
-                for messaging in entry['messaging']:
+                for messaging in messaging_list:
                     print("4. Processing messaging item")
-                    print(f"Messaging content: {json.dumps(messaging, indent=2)}")
                     
+                    # Extract sender ID
                     sender_id = messaging.get('sender', {}).get('id')
+                    if not sender_id:
+                        print("No sender ID found")
+                        continue
+                    print(f"5. Found sender ID: {sender_id}")
+
+                    # Extract message content
                     message = messaging.get('message', {})
-                    
-                    print(f"5. Sender ID: {sender_id}")
-                    print(f"6. Message content: {json.dumps(message, indent=2)}")
-                    
-                    if not sender_id or not message:
-                        print("Missing sender_id or message")
+                    if not message:
+                        print("No message content found")
                         continue
 
-                    text = message.get('text', '')
                     attachments = message.get('attachments', [])
+                    if not attachments:
+                        print("No attachments found")
+                        reply = send_graph_api_reply(sender_id, "Please send a screenshot of a TikTok or Reel. You can access outfits you've already shared on our app or after signing up via https://www.wha7.com/f/5f804b34-9f3a-4bd6-a9e5-bf21e2a9018d")
+                        print(f"Default message response: {reply}")
+                        continue
+
+                    # Process the first attachment
+                    attachment = attachments[0]
+                    media_url = attachment.get('payload', {}).get('url')
                     
-                    print(f"7. Text content: {text}")
-                    print(f"8. Attachments: {json.dumps(attachments, indent=2)}")
+                    if not media_url:
+                        print("No media URL found in attachment")
+                        continue
                     
-                    # If there's media, process it
-                    if attachments:
-                        print("9. Processing attachments")
-                        for attachment in attachments:
-                            print(f"10. Processing attachment: {json.dumps(attachment, indent=2)}")
+                    print(f"8. Processing media URL: {media_url}")
+                    
+                    # Fetch the image
+                    try:
+                        media_response = requests.get(media_url)
+                        print(f"9. Media fetch status: {media_response.status_code}")
+                        
+                        if media_response.status_code == 200:
+                            image_content = media_response.content
+                            base64_image = base64.b64encode(image_content).decode('utf-8')
                             
-                            # Handle both 'image' and 'share' type attachments
-                            if attachment.get('type') in ['image', 'share']:
-                                media_url = attachment.get('payload', {}).get('url')
-                                print(f"11. Media URL found: {media_url}")
+                            try:
+                                clothing_items = process_response(base64_image, sender_id, "")
+                                print("10. Image processed successfully")
                                 
-                                if media_url:
-                                    try:
-                                        print("12. Fetching media")
-                                        headers = {
-                                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-                                        }
-                                        response = requests.get(media_url, headers=headers)
-                                        print(f"13. Media fetch status code: {response.status_code}")
-                                        print(f"14. Response headers: {response.headers}")
-                                        
-                                        if response.status_code == 200:
-                                            print("15. Successfully fetched media")
-                                            image_content = response.content
-                                            base64_image = base64.b64encode(image_content).decode('utf-8')
-                                            
-                                            print("16. Processing image with process_response")
-                                            clothing_items = process_response(base64_image, sender_id, text)
-                                            print(f"17. Process response result: {clothing_items}")
-                                            
-                                            # Test message to verify API is working
-                                            test_message = "I received your image and I'm processing it!"
-                                            print(f"18. Sending test message: {test_message}")
-                                            response = send_instagram_reply(sender_id, test_message)
-                                            print(f"19. Test message response: {response}")
-                                            
-                                            # Send actual response based on purpose
-                                            if hasattr(clothing_items, 'Purpose'):
-                                                if clothing_items.Purpose == 1:
-                                                    reply_message = f"{clothing_items.Response} You can view the outfit on the Wha7 app. Join the waitlist at https://www.wha7.com/f/5f804b34-9f3a-4bd6-a9e5-bf21e2a9018d"
-                                                elif clothing_items.Purpose == 2:
-                                                    reply_message = clothing_items.Response
-                                                else:
-                                                    reply_message = "I'm sorry, I'm not sure how to respond to that. Can you retry?"
-                                                
-                                                print(f"20. Sending final reply: {reply_message}")
-                                                response = send_instagram_reply(sender_id, reply_message)
-                                                print(f"21. Final reply response: {response}")
-                                            else:
-                                                print("No Purpose attribute found in clothing_items")
-                                        else:
-                                            error_msg = f"Failed to fetch media: {response.status_code}"
-                                            print(error_msg)
-                                            send_instagram_reply(sender_id, "Sorry, I couldn't process your image. Please try sending it again.")
-                                    except Exception as e:
-                                        error_msg = f"Error processing media: {str(e)}"
-                                        print(error_msg)
-                                        send_instagram_reply(sender_id, "Sorry, there was an error processing your image. Please try again.")
-                    else:
-                        print("No attachments found, sending default message")
-                        reply_message = "Please send a screenshot of a TikTok or Reel. You can access outfits you've already shared on our app or after signing up via https://www.wha7.com/f/5f804b34-9f3a-4bd6-a9e5-bf21e2a9018d"
-                        send_instagram_reply(sender_id, reply_message)
-        
+                                if hasattr(clothing_items, 'Purpose'):
+                                    if clothing_items.Purpose == 1:
+                                        reply = f"{clothing_items.Response} You can view the outfit on the Wha7 app. Join the waitlist at https://www.wha7.com/f/5f804b34-9f3a-4bd6-a9e5-bf21e2a9018d"
+                                    elif clothing_items.Purpose == 2:
+                                        reply = clothing_items.Response
+                                    else:
+                                        reply = "I'm sorry, I'm not sure how to respond to that. Can you retry?"
+                                    
+                                    print(f"11. Sending final reply: {reply}")
+                                    response = send_graph_api_reply(sender_id, reply)
+                                    print(f"12. Final response: {response}")
+                            except Exception as e:
+                                print(f"Error in processing response: {e}")
+                                send_graph_api_reply(sender_id, "Sorry, I had trouble processing your image. Please try again.")
+                        else:
+                            print(f"Media fetch failed with status {media_response.status_code}")
+                            send_graph_api_reply(sender_id, "Sorry, I couldn't access your image. Please try sending it again.")
+                    except Exception as e:
+                        print(f"Error fetching media: {e}")
+                        send_graph_api_reply(sender_id, "Sorry, there was an error accessing your image. Please try again.")
+
         return jsonify({'status': 'success'}), 200
     
     except Exception as e:
-        print(f"Error in Instagram webhook: {e}")
-        print(f"Full error details: {traceback.format_exc()}")
+        print(f"Error in webhook handler: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+def send_graph_api_reply(user_id, message):
+    """Send reply using Instagram Graph API"""
+    try:
+        url = "https://graph.instagram.com/v12.0/me/messages"
+        headers = {
+            'Authorization': f'Bearer {INSTAGRAM_ACCESS_TOKEN}'
+        }
+        data = {
+            'recipient': {'id': user_id},
+            'message': {'text': message}
+        }
+        print(f"Sending message to {user_id}: {message}")
+        response = requests.post(url, headers=headers, json=data)
+        response_json = response.json()
+        print(f"Instagram API response: {response_json}")
+        return response_json
+    except Exception as e:
+        print(f"Error sending message: {str(e)}")
+        raise
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
