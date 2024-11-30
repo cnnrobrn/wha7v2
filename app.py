@@ -469,7 +469,7 @@ def handle_instagram_messages():
                     # If there's media, process it similar to the SMS webhook
                     if attachments:
                         for attachment in attachments:
-                            if attachment.get('type') == 'image':
+                            if attachment.get('type') in ['image', 'share']:
                                 media_url = attachment.get('payload', {}).get('url')
                                 if media_url:
                                     response = requests.get(media_url)
