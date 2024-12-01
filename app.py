@@ -481,11 +481,19 @@ def handle_instagram_messages():
                     with app.app_context():
                         Session = session_factory()
                         try:
-                            # Check if user exists by Instagram ID
-                            user = Session.query(PhoneNumber).filter_by(instagram_id=sender_id).first()
+                            # Check if this Instagram account is already linked to a phone number
+                            existing_user = Session.query(PhoneNumber).filter_by(
+                                instagram_id=sender_id
+                            ).first()
                             
-                            if not user:
-                                # Create new user with Instagram info
+                            if existing_user and existing_user.phone_number.startswith('IG_'):
+                                # This is a temporary Instagram-only account
+                                user = existing_user
+                            elif existing_user:
+                                # This Instagram account is already properly linked
+                                user = existing_user
+                            else:
+                                # Create new temporary account
                                 user = PhoneNumber(
                                     instagram_id=sender_id,
                                     instagram_username=instagram_username,
@@ -520,9 +528,16 @@ def handle_instagram_messages():
                                     # Process the image using the user's ID
                                     clothing_items = process_response(base64_image, user.phone_number, "")
                                     
+                                    # Check if user has a real phone number or temporary one
+                                    signup_message = (
+                                        " You can view the outfit on the Wha7 app. Join the waitlist at https://www.wha7.com/f/5f804b34-9f3a-4bd6-a9e5-bf21e2a9018d"
+                                        if user.phone_number.startswith("IG_")
+                                        else ""
+                                    )
+                                    
                                     if hasattr(clothing_items, 'Purpose'):
                                         if clothing_items.Purpose == 1:
-                                            reply = f"{clothing_items.Response} You can view the outfit on the Wha7 app. Join the waitlist at https://www.wha7.com/f/5f804b34-9f3a-4bd6-a9e5-bf21e2a9018d"
+                                            reply = f"{clothing_items.Response}{signup_message}"
                                         elif clothing_items.Purpose == 2:
                                             reply = clothing_items.Response
                                         else:
@@ -530,10 +545,14 @@ def handle_instagram_messages():
                                         
                                         response = send_graph_api_reply(sender_id, reply)
                                         print(f"Response sent: {response}")
-                                        
+                                else:
+                                    print(f"Failed to fetch media: {media_response.status_code}")
+                                    send_graph_api_reply(sender_id, "Sorry, I had trouble accessing your image. Please try again.")
+                            
                         except Exception as e:
                             print(f"Database error: {e}")
                             Session.rollback()
+                            send_graph_api_reply(sender_id, "Sorry, something went wrong. Please try again later.")
                         finally:
                             Session.close()
 
@@ -578,6 +597,85 @@ def send_graph_api_reply(user_id, message):
     except Exception as e:
         print(f"Error sending message: {str(e)}")
         raise
+
+@app.route("/api/instagram/link", methods=['POST'])
+def link_instagram():
+    try:
+        data = request.get_json()
+        phone_number = data.get('phone_number')
+        
+        if not phone_number:
+            return jsonify({'error': 'Phone number is required'}), 400
+            
+        with app.app_context():
+            Session = session_factory()
+            try:
+                # Get the phone number record
+                phone_record = Session.query(PhoneNumber).filter_by(phone_number=phone_number).first()
+                
+                if not phone_record:
+                    return jsonify({'error': 'Phone number not found'}), 404
+                
+                # Generate a temporary linking code
+                linking_code = generate_linking_code()
+                
+                # Store the linking code in a temporary cache or database table
+                # This is where you'd implement your temporary storage solution
+                
+                # Return the Instagram OAuth URL or linking instructions
+                return jsonify({
+                    'linking_code': linking_code,
+                    'auth_url': f"https://api.instagram.com/oauth/authorize?client_id={INSTAGRAM_CLIENT_ID}&redirect_uri={INSTAGRAM_REDIRECT_URI}&scope=basic&response_type=code&state={linking_code}"
+                })
+                
+            except Exception as e:
+                print(f"Database error: {e}")
+                Session.rollback()
+                return jsonify({'error': str(e)}), 500
+            finally:
+                Session.close()
+                
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route("/api/instagram/unlink", methods=['POST'])
+def unlink_instagram():
+    try:
+        data = request.get_json()
+        phone_number = data.get('phone_number')
+        
+        if not phone_number:
+            return jsonify({'error': 'Phone number is required'}), 400
+            
+        with app.app_context():
+            Session = session_factory()
+            try:
+                # Get the phone number record
+                phone_record = Session.query(PhoneNumber).filter_by(phone_number=phone_number).first()
+                
+                if not phone_record:
+                    return jsonify({'error': 'Phone number not found'}), 404
+                
+                # Clear Instagram information
+                phone_record.instagram_username = None
+                phone_record.instagram_id = None
+                Session.commit()
+                
+                return jsonify({'status': 'success'})
+                
+            except Exception as e:
+                print(f"Database error: {e}")
+                Session.rollback()
+                return jsonify({'error': str(e)}), 500
+            finally:
+                Session.close()
+                
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+def generate_linking_code():
+    """Generate a random code for Instagram account linking"""
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
