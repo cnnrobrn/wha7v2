@@ -449,12 +449,10 @@ def verify_webhook():
 def handle_instagram_messages():
     """Handle incoming Instagram messages webhook"""
     try:
-        # Get the request body
         webhook_data = request.json
         print("1. Webhook received")
         print(f"Received webhook data: {json.dumps(webhook_data, indent=2)}")
 
-        # Check if this is a message event
         if webhook_data.get('object') == 'instagram' and webhook_data.get('entry'):
             print("2. Valid Instagram webhook")
             
@@ -469,75 +467,97 @@ def handle_instagram_messages():
                 for messaging in messaging_list:
                     print("4. Processing messaging item")
                     
-                    # Extract sender ID
+                    # Extract sender information
                     sender_id = messaging.get('sender', {}).get('id')
                     if not sender_id:
                         print("No sender ID found")
                         continue
                     print(f"5. Found sender ID: {sender_id}")
 
-                    # Extract message content
-                    message = messaging.get('message', {})
-                    if not message:
-                        print("No message content found")
-                        continue
-
-                    attachments = message.get('attachments', [])
-                    if not attachments:
-                        print("No attachments found")
-                        reply = send_graph_api_reply(sender_id, "Please send a screenshot of a TikTok or Reel. You can access outfits you've already shared on our app or after signing up via https://www.wha7.com/f/5f804b34-9f3a-4bd6-a9e5-bf21e2a9018d")
-                        print(f"Default message response: {reply}")
-                        continue
-
-                    # Process the first attachment
-                    attachment = attachments[0]
-                    media_url = attachment.get('payload', {}).get('url')
+                    # Get Instagram username using Graph API
+                    instagram_username = get_instagram_username(sender_id)
                     
-                    if not media_url:
-                        print("No media URL found in attachment")
-                        continue
-                    
-                    print(f"8. Processing media URL: {media_url}")
-                    
-                    # Fetch the image
-                    try:
-                        media_response = requests.get(media_url)
-                        print(f"9. Media fetch status: {media_response.status_code}")
-                        
-                        if media_response.status_code == 200:
-                            image_content = media_response.content
-                            base64_image = base64.b64encode(image_content).decode('utf-8')
+                    # Create or update PhoneNumber record
+                    with app.app_context():
+                        Session = session_factory()
+                        try:
+                            # Check if user exists by Instagram ID
+                            user = Session.query(PhoneNumber).filter_by(instagram_id=sender_id).first()
                             
-                            try:
-                                clothing_items = process_response(base64_image, sender_id, "")
-                                print("10. Image processed successfully")
-                                
-                                if hasattr(clothing_items, 'Purpose'):
-                                    if clothing_items.Purpose == 1:
-                                        reply = f"{clothing_items.Response} You can view the outfit on the Wha7 app. Join the waitlist at https://www.wha7.com/f/5f804b34-9f3a-4bd6-a9e5-bf21e2a9018d"
-                                    elif clothing_items.Purpose == 2:
-                                        reply = clothing_items.Response
-                                    else:
-                                        reply = "I'm sorry, I'm not sure how to respond to that. Can you retry?"
+                            if not user:
+                                # Create new user with Instagram info
+                                user = PhoneNumber(
+                                    instagram_id=sender_id,
+                                    instagram_username=instagram_username,
+                                    phone_number=f"IG_{sender_id}"  # Temporary phone number placeholder
+                                )
+                                Session.add(user)
+                                Session.commit()
+                            
+                            # Process the message
+                            message = messaging.get('message', {})
+                            if not message:
+                                print("No message content found")
+                                continue
+
+                            attachments = message.get('attachments', [])
+                            if not attachments:
+                                print("No attachments found")
+                                reply = send_graph_api_reply(sender_id, "Please send a screenshot of a TikTok or Reel. You can access outfits you've already shared on our app or after signing up via https://www.wha7.com/f/5f804b34-9f3a-4bd6-a9e5-bf21e2a9018d")
+                                print(f"Default message response: {reply}")
+                                continue
+
+                            # Process the first attachment
+                            attachment = attachments[0]
+                            media_url = attachment.get('payload', {}).get('url')
+                            
+                            if media_url:
+                                media_response = requests.get(media_url)
+                                if media_response.status_code == 200:
+                                    image_content = media_response.content
+                                    base64_image = base64.b64encode(image_content).decode('utf-8')
                                     
-                                    print(f"11. Sending final reply: {reply}")
-                                    response = send_graph_api_reply(sender_id, reply)
-                                    print(f"12. Final response: {response}")
-                            except Exception as e:
-                                print(f"Error in processing response: {e}")
-                                send_graph_api_reply(sender_id, "Sorry, I had trouble processing your image. Please try again.")
-                        else:
-                            print(f"Media fetch failed with status {media_response.status_code}")
-                            send_graph_api_reply(sender_id, "Sorry, I couldn't access your image. Please try sending it again.")
-                    except Exception as e:
-                        print(f"Error fetching media: {e}")
-                        send_graph_api_reply(sender_id, "Sorry, there was an error accessing your image. Please try again.")
+                                    # Process the image using the user's ID
+                                    clothing_items = process_response(base64_image, user.phone_number, "")
+                                    
+                                    if hasattr(clothing_items, 'Purpose'):
+                                        if clothing_items.Purpose == 1:
+                                            reply = f"{clothing_items.Response} You can view the outfit on the Wha7 app. Join the waitlist at https://www.wha7.com/f/5f804b34-9f3a-4bd6-a9e5-bf21e2a9018d"
+                                        elif clothing_items.Purpose == 2:
+                                            reply = clothing_items.Response
+                                        else:
+                                            reply = "I'm sorry, I'm not sure how to respond to that. Can you retry?"
+                                        
+                                        response = send_graph_api_reply(sender_id, reply)
+                                        print(f"Response sent: {response}")
+                                        
+                        except Exception as e:
+                            print(f"Database error: {e}")
+                            Session.rollback()
+                        finally:
+                            Session.close()
 
         return jsonify({'status': 'success'}), 200
     
     except Exception as e:
         print(f"Error in webhook handler: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+def get_instagram_username(user_id):
+    """Fetch Instagram username using Graph API"""
+    try:
+        url = f"https://graph.facebook.com/v18.0/{user_id}"
+        params = {
+            'access_token': INSTAGRAM_ACCESS_TOKEN,
+            'fields': 'username'
+        }
+        response = requests.get(url, params=params)
+        if response.status_code == 200:
+            return response.json().get('username')
+        return None
+    except Exception as e:
+        print(f"Error fetching Instagram username: {e}")
+        return None
 
 def send_graph_api_reply(user_id, message):
     """Send reply using Instagram Graph API"""
