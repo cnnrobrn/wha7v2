@@ -483,7 +483,7 @@ def handle_instagram_messages():
                         try:
                             # Check if this Instagram account is already linked to a phone number
                             existing_user = Session.query(PhoneNumber).filter_by(
-                                instagram_id=sender_id
+                                instagram_username=instagram_username
                             ).first()
                             
                             if existing_user and existing_user.phone_number.startswith('IG_'):
@@ -495,9 +495,8 @@ def handle_instagram_messages():
                             else:
                                 # Create new temporary account
                                 user = PhoneNumber(
-                                    instagram_id=sender_id,
                                     instagram_username=instagram_username,
-                                    phone_number=f"IG_{sender_id}"  # Temporary phone number placeholder
+                                    phone_number=f"IG_{instagram_username}"  # Temporary phone number placeholder
                                 )
                                 Session.add(user)
                                 Session.commit()
@@ -562,6 +561,90 @@ def handle_instagram_messages():
         print(f"Error in webhook handler: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route("/api/instagram/link", methods=['POST'])
+def link_instagram():
+    try:
+        data = request.get_json()
+        phone_number = data.get('phone_number')
+        instagram_username = data.get('instagram_username')
+        
+        if not phone_number or not instagram_username:
+            return jsonify({'error': 'Phone number and Instagram username are required'}), 400
+            
+        with app.app_context():
+            Session = session_factory()
+            try:
+                # Get the phone number record
+                phone_record = Session.query(PhoneNumber).filter_by(phone_number=phone_number).first()
+                
+                if not phone_record:
+                    return jsonify({'error': 'Phone number not found'}), 404
+                
+                # Check if this Instagram username is already linked to another account
+                existing_instagram = Session.query(PhoneNumber).filter_by(
+                    instagram_username=instagram_username
+                ).first()
+                
+                if existing_instagram and existing_instagram.id != phone_record.id:
+                    if existing_instagram.phone_number.startswith('IG_'):
+                        # If it's a temporary account, we can update it
+                        existing_instagram.phone_number = phone_number
+                        existing_instagram.instagram_username = instagram_username
+                        Session.delete(phone_record)  # Remove the old phone record
+                        phone_record = existing_instagram
+                    else:
+                        return jsonify({'error': 'Instagram username is already linked to another account'}), 400
+                else:
+                    # Update Instagram information
+                    phone_record.instagram_username = instagram_username
+                
+                Session.commit()
+                return jsonify({'status': 'success', 'username': instagram_username})
+                
+            except Exception as e:
+                print(f"Database error: {e}")
+                Session.rollback()
+                return jsonify({'error': str(e)}), 500
+            finally:
+                Session.close()
+                
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route("/api/instagram/unlink", methods=['POST'])
+def unlink_instagram():
+    try:
+        data = request.get_json()
+        phone_number = data.get('phone_number')
+        
+        if not phone_number:
+            return jsonify({'error': 'Phone number is required'}), 400
+            
+        with app.app_context():
+            Session = session_factory()
+            try:
+                # Get the phone number record
+                phone_record = Session.query(PhoneNumber).filter_by(phone_number=phone_number).first()
+                
+                if not phone_record:
+                    return jsonify({'error': 'Phone number not found'}), 404
+                
+                # Clear Instagram information
+                phone_record.instagram_username = None
+                Session.commit()
+                
+                return jsonify({'status': 'success'})
+                
+            except Exception as e:
+                print(f"Database error: {e}")
+                Session.rollback()
+                return jsonify({'error': str(e)}), 500
+            finally:
+                Session.close()
+                
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 def get_instagram_username(user_id):
     """Fetch Instagram username using Graph API"""
     try:
@@ -597,86 +680,7 @@ def send_graph_api_reply(user_id, message):
     except Exception as e:
         print(f"Error sending message: {str(e)}")
         raise
-
-@app.route("/api/instagram/link", methods=['POST'])
-def link_instagram():
-    try:
-        data = request.get_json()
-        phone_number = data.get('phone_number')
         
-        if not phone_number:
-            return jsonify({'error': 'Phone number is required'}), 400
-            
-        with app.app_context():
-            Session = session_factory()
-            try:
-                # Get the phone number record
-                phone_record = Session.query(PhoneNumber).filter_by(phone_number=phone_number).first()
-                
-                if not phone_record:
-                    return jsonify({'error': 'Phone number not found'}), 404
-                
-                # Generate a temporary linking code
-                linking_code = generate_linking_code()
-                
-                # Store the linking code in a temporary cache or database table
-                # This is where you'd implement your temporary storage solution
-                
-                # Return the Instagram OAuth URL or linking instructions
-                return jsonify({
-                    'linking_code': linking_code,
-                    'auth_url': f"https://api.instagram.com/oauth/authorize?client_id={INSTAGRAM_CLIENT_ID}&redirect_uri={INSTAGRAM_REDIRECT_URI}&scope=basic&response_type=code&state={linking_code}"
-                })
-                
-            except Exception as e:
-                print(f"Database error: {e}")
-                Session.rollback()
-                return jsonify({'error': str(e)}), 500
-            finally:
-                Session.close()
-                
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route("/api/instagram/unlink", methods=['POST'])
-def unlink_instagram():
-    try:
-        data = request.get_json()
-        phone_number = data.get('phone_number')
-        
-        if not phone_number:
-            return jsonify({'error': 'Phone number is required'}), 400
-            
-        with app.app_context():
-            Session = session_factory()
-            try:
-                # Get the phone number record
-                phone_record = Session.query(PhoneNumber).filter_by(phone_number=phone_number).first()
-                
-                if not phone_record:
-                    return jsonify({'error': 'Phone number not found'}), 404
-                
-                # Clear Instagram information
-                phone_record.instagram_username = None
-                phone_record.instagram_id = None
-                Session.commit()
-                
-                return jsonify({'status': 'success'})
-                
-            except Exception as e:
-                print(f"Database error: {e}")
-                Session.rollback()
-                return jsonify({'error': str(e)}), 500
-            finally:
-                Session.close()
-                
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-def generate_linking_code():
-    """Generate a random code for Instagram account linking"""
-    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
-
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
 
