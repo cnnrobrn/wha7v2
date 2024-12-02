@@ -345,7 +345,7 @@ def database_commit(clothing_items, from_number, base64_image_data=None, instagr
                 phone = PhoneNumber(phone_number=from_number, instagram_username=instagram_username)
                 Session.add(phone)
                 Session.commit()
-            elif instagram_username and not phone.instagram_username:
+            elif instagram_username and not Session.query(PhoneNumber).filter_by(instagram_username=instagram_username).first():
                 # Update existing record with Instagram username if not already set
                 phone.instagram_username = instagram_username
                 Session.commit()
