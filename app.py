@@ -299,15 +299,16 @@ def analyze_image_with_openai(base64_image=None,text=None,true_prompt=prompt,for
     except Exception as e:
         print(f"Error analyzing image with OpenAI: {e}")
         return None
-def process_response(base64_image,from_number,text,prompt_text=prompt,format=Outfits):
+def process_response(base64_image, from_number, text, prompt_text=prompt, format=Outfits, instagram_username=None):
     if base64_image:
         base64_image_data = f"data:image/jpeg;base64,{base64_image}"
-        clothing_items = analyze_image_with_openai(base64_image_data,text,prompt_text,format)
-        if format==Outfits:
-            database_commit(clothing_items, from_number, base64_image_data)
+        clothing_items = analyze_image_with_openai(base64_image_data, text, prompt_text, format)
+        if format == Outfits:
+            database_commit(clothing_items, from_number, base64_image_data, instagram_username)
     else:
-        clothing_items = analyze_text_with_openai(text=text,true_prompt=prompt_text,format=format)      
+        clothing_items = analyze_text_with_openai(text=text, true_prompt=prompt_text, format=format)      
     return clothing_items
+    
 def shorten_url(long_url):
     # Define the endpoint URL (change port if necessary)
     url = 'https://item.wha7.com/shorten'
@@ -328,15 +329,19 @@ def shorten_url(long_url):
         print('Error:', response.json().get('error'))
         return None   
 
-def database_commit(clothing_items, from_number, base64_image_data = None):
+def database_commit(clothing_items, from_number, base64_image_data=None, instagram_username=None):
     with app.app_context():
         Session = session_factory()
         try:
             # Create or get the PhoneNumber
             phone = Session.query(PhoneNumber).filter_by(phone_number=from_number).first()
             if not phone:
-                phone = PhoneNumber(phone_number=from_number)
+                phone = PhoneNumber(phone_number=from_number, instagram_username=instagram_username)
                 Session.add(phone)
+                Session.commit()
+            elif instagram_username and not phone.instagram_username:
+                # Update existing record with Instagram username if not already set
+                phone.instagram_username = instagram_username
                 Session.commit()
 
             # Create a new Outfit
@@ -359,14 +364,8 @@ def format_phone_number(phone_number):
     if not phone_number.startswith("+1"):
         phone_number = "+1" + phone_number
     return phone_number
-def get_recommendation_id(item_description):
-    flask_api_url = "https://access.wha7.com/rag_search"  # Replace with your actual URL
-    response = requests.post(flask_api_url, json={"item_description": item_description})
-    if response.status_code == 200:
-        return response.json()["item_id"]  # Assuming your API returns the item_id
-    else:
-        # Handle error (e.g., log the error, return a default value)
-        return "Error"
+
+
 def get_unread_messages():
     """Fetch unread direct messages"""
     try:
@@ -381,29 +380,6 @@ def get_unread_messages():
         print(f"Error fetching messages: {e}")
         return []
 
-def process_instagram_message(message_data):
-    """Process individual Instagram message"""
-    try:
-        from_id = message_data.get('from', {}).get('id')
-        message_text = message_data.get('message', '')
-        attachments = message_data.get('attachments', {}).get('data', [])
-        
-        # Handle media attachments
-        media_url = None
-        if attachments:
-            for attachment in attachments:
-                if attachment.get('image_data'):
-                    media_url = attachment['image_data'].get('url')
-                    break
-        
-        return {
-            'from_id': from_id,
-            'text': message_text,
-            'media_url': media_url
-        }
-    except Exception as e:
-        print(f"Error processing message: {e}")
-        return None
 
 def send_instagram_reply(user_id, message):
     """Send reply to Instagram user"""
@@ -449,12 +425,10 @@ def verify_webhook():
 def handle_instagram_messages():
     """Handle incoming Instagram messages webhook"""
     try:
-        # Get the request body
         webhook_data = request.json
         print("1. Webhook received")
         print(f"Received webhook data: {json.dumps(webhook_data, indent=2)}")
 
-        # Check if this is a message event
         if webhook_data.get('object') == 'instagram' and webhook_data.get('entry'):
             print("2. Valid Instagram webhook")
             
@@ -469,12 +443,15 @@ def handle_instagram_messages():
                 for messaging in messaging_list:
                     print("4. Processing messaging item")
                     
-                    # Extract sender ID
+                    # Extract sender ID and username
                     sender_id = messaging.get('sender', {}).get('id')
+                    # Get the username from the sender object
+                    sender_username = messaging.get('sender', {}).get('username')
+                    
                     if not sender_id:
                         print("No sender ID found")
                         continue
-                    print(f"5. Found sender ID: {sender_id}")
+                    print(f"5. Found sender ID: {sender_id} with username: {sender_username}")
 
                     # Extract message content
                     message = messaging.get('message', {})
@@ -509,7 +486,12 @@ def handle_instagram_messages():
                             base64_image = base64.b64encode(image_content).decode('utf-8')
                             
                             try:
-                                clothing_items = process_response(base64_image, sender_id, "")
+                                clothing_items = process_response(
+                                    base64_image, 
+                                    sender_id, 
+                                    "", 
+                                    instagram_username=sender_username
+                                )
                                 print("10. Image processed successfully")
                                 
                                 if hasattr(clothing_items, 'Purpose'):
