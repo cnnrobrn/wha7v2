@@ -334,7 +334,14 @@ def shorten_url(long_url):
     else:
         print('Error:', response.json().get('error'))
         return None   
-
+def get_recommendation_id(item_description):
+    flask_api_url = "https://access.wha7.com/rag_search"  # Replace with your actual URL
+    response = requests.post(flask_api_url, json={"item_description": item_description})
+    if response.status_code == 200:
+        return response.json()["item_id"]  # Assuming your API returns the item_id
+    else:
+        # Handle error (e.g., log the error, return a default value)
+        return "Error"
 def database_commit(clothing_items, from_number, base64_image_data=None, instagram_username=None):
     with app.app_context():
         Session = session_factory()
