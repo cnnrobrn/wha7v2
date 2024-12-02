@@ -173,6 +173,28 @@ Output the Recommendations object as a JSON string."""
 client = OpenAI()
 
 
+@app.route("/debug/instagram/<username>")
+def debug_instagram_outfits(username):
+    with app.app_context():
+        Session = session_factory()
+        try:
+            phone = Session.query(PhoneNumber).filter_by(instagram_username=username).first()
+            if not phone:
+                return jsonify({"error": "User not found"}), 404
+                
+            outfits = Session.query(Outfit).filter_by(phone_id=phone.id).all()
+            return jsonify({
+                "user_id": phone.id,
+                "outfit_count": len(outfits),
+                "outfits": [{
+                    "id": o.id,
+                    "created_at": o.created_at.isoformat() if o.created_at else None,
+                    "item_count": len(o.items)
+                } for o in outfits]
+            })
+        finally:
+            Session.close()
+
 @app.route("/sms", methods=['POST'])
 def sms_reply():
     # Extract incoming message information
