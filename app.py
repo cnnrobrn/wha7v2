@@ -336,29 +336,45 @@ def database_commit(clothing_items, from_number, base64_image_data=None, instagr
     with app.app_context():
         Session = session_factory()
         try:
-            # Create or get the PhoneNumber
-            phone = Session.query(PhoneNumber).filter_by(phone_number=from_number).first()
-            if not phone:
-                phone = PhoneNumber(phone_number=from_number, instagram_username=instagram_username)
-                Session.add(phone)
-                Session.commit()
-            elif instagram_username and not phone.instagram_username:
-                # Update existing record with Instagram username if not already set
-                phone.instagram_username = instagram_username
-                Session.commit()
+            if instagram_username:
+                # Handle Instagram user
+                phone_id = get_or_create_instagram_user(instagram_username)
+            else:
+                # Handle phone number user
+                phone = Session.query(PhoneNumber).filter_by(phone_number=from_number).first()
+                if not phone:
+                    phone = PhoneNumber(phone_number=from_number)
+                    Session.add(phone)
+                    Session.commit()
+                phone_id = phone.id
 
             # Create a new Outfit
-            outfit = Outfit(phone_id=phone.id, image_data=base64_image_data, description="Outfit from image")
+            outfit = Outfit(
+                phone_id=phone_id,
+                image_data=base64_image_data,
+                description="Outfit from Instagram" if instagram_username else "Outfit from image"
+            )
             Session.add(outfit)
             Session.commit()
                     
             if clothing_items.Article is not None:
                 for item in clothing_items.Article:
-                    new_item = Item(outfit_id=outfit.id, description=item.Item, search=item.Amazon_Search, processed_at=None)
+                    new_item = Item(
+                        outfit_id=outfit.id,
+                        description=item.Item,
+                        search=item.Amazon_Search,
+                        processed_at=datetime.now(timezone.utc)
+                    )
                     Session.add(new_item)
-                    Session.commit()
+                Session.commit()
+                print(f"Saved outfit {outfit.id} with {len(clothing_items.Article)} items for user {instagram_username or from_number}")
             else:
                 print("No items found in clothing_items.Article")
+                
+        except Exception as e:
+            print(f"Error in database_commit: {e}")
+            Session.rollback()
+            raise
         finally:
             Session.close()
             
@@ -491,7 +507,7 @@ def handle_instagram_messages():
                             try:
                                 clothing_items = process_response(
                                     base64_image, 
-                                    sender_id, 
+                                    None, 
                                     "", 
                                     instagram_username=sender_username
                                 )
@@ -546,6 +562,33 @@ def send_graph_api_reply(user_id, message):
     except Exception as e:
         print(f"Error sending message: {str(e)}")
         raise
+
+def get_or_create_instagram_user(instagram_username):
+    """
+    Get or create a user record for Instagram interactions.
+    Returns the associated phone_id.
+    """
+    with app.app_context():
+        Session = session_factory()
+        try:
+            # Try to find existing user by Instagram username
+            phone = Session.query(PhoneNumber).filter_by(instagram_username=instagram_username).first()
+            
+            if phone:
+                return phone.id
+                
+            # Create new user with just Instagram username
+            new_phone = PhoneNumber(
+                phone_number=None,  # No phone number for Instagram-only users
+                instagram_username=instagram_username,
+                is_activated=True  # Instagram users are automatically activated
+            )
+            Session.add(new_phone)
+            Session.commit()
+            return new_phone.id
+            
+        finally:
+            Session.close()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
