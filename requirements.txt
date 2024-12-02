@@ -31,6 +31,7 @@ sqlalchemy
 psycopg2
 
 flask_cors
+flask.cli
 
 Flask_Migrate
 
