@@ -1,0 +1,8 @@
+# Web process that runs migrations and starts the application
+web: gunicorn --bind 0.0.0.0:$PORT 'app:app' --workers 3 --threads 2
+
+# Alternative web process if using start.py for migrations
+# web: python start.py
+
+# If you need a worker process (e.g., for background tasks)
+# worker: celery -A app.celery worker --loglevel=info
