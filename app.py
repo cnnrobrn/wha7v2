@@ -354,7 +354,8 @@ def database_commit(clothing_items, from_number, base64_image_data=None, instagr
                 Session.commit()
             elif instagram_username and not Session.query(PhoneNumber).filter_by(instagram_username=instagram_username).first():
                 # Update existing record with Instagram username if not already set
-                phone.instagram_username = instagram_username
+                phone = PhoneNumber(phone_number=from_number, instagram_username=instagram_username)
+                Session.add(phone)
                 Session.commit()
 
             # Create a new Outfit
@@ -505,7 +506,7 @@ def handle_instagram_messages():
                             try:
                                 clothing_items = process_response(
                                     base64_image, 
-                                    sender_id, 
+                                    None, 
                                     "", 
                                     instagram_username=sender_username
                                 )
