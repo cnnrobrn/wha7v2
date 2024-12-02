@@ -17,6 +17,7 @@ import psycopg2
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 
+
 # wha7_models imports
 from wha7_models import init_db, PhoneNumber, Outfit, Item, Link, ReferralCode, Referral
 
@@ -37,6 +38,8 @@ INSTAGRAM_PASSWORD = os.getenv('INSTAGRAM_PASSWORD')
 INSTAGRAM_ACCESS_TOKEN = os.getenv('INSTAGRAM_ACCESS_TOKEN')
 INSTAGRAM_BUSINESS_ACCOUNT_ID = os.getenv('INSTAGRAM_BUSINESS_ACCOUNT_ID')
 WEBHOOK_VERIFY_TOKEN = os.getenv('WEBHOOK_VERIFY_TOKEN')  # Add this to your .env file
+GRAPH_API_URL = "https://graph.instagram.com/v12.0"
+
 
 # Configure SQLAlchemy
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
@@ -445,14 +448,18 @@ def handle_instagram_messages():
                     
                 for messaging in messaging_list:
                     print("4. Processing messaging item")
-                    
-                    # Extract sender ID and username
+                        
+                        # Extract sender ID
                     sender_id = messaging.get('sender', {}).get('id')
-                    # Get the username from the sender object
-                    sender_username = messaging.get('sender', {}).get('username')
-                    
-                    if not sender_id:
-                        print("No sender ID found")
+                    if sender_id:
+                        # Fetch the username using the sender ID
+                        sender_username = get_username(sender_id)
+                        if sender_username:
+                            print(f"Sender ID: {sender_id}, Username: {sender_username}")
+                        else:
+                            print(f"Could not fetch username for Sender ID: {sender_id}")
+                    else:
+                        print("No sender ID found in the messaging item.")
                         continue
                     print(f"5. Found sender ID: {sender_id} with username: {sender_username}")
 
@@ -546,6 +553,21 @@ def send_graph_api_reply(user_id, message):
     except Exception as e:
         print(f"Error sending message: {str(e)}")
         raise
+
+def get_username(sender_id):
+    """Fetch the username associated with the sender ID."""
+    url = f"{GRAPH_API_URL}/{sender_id}"
+    params = {
+        "fields": "username",
+        "access_token": INSTAGRAM_ACCESS_TOKEN
+    }
+    response = requests.get(url, params=params)
+    if response.status_code == 200:
+        data = response.json()
+        return data.get("username")
+    else:
+        print(f"Failed to fetch username for sender_id {sender_id}. Error: {response.text}")
+        return None
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
