@@ -32,6 +32,7 @@ psycopg2
 
 flask_cors
 flask.cli
+alembic
 
 Flask_Migrate
 

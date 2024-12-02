@@ -1,4 +1,5 @@
 # Web process that runs migrations and starts the application
+release: flask db upgrade
 web: gunicorn --bind 0.0.0.0:$PORT 'app:app' --workers 3 --threads 2
 
 # Alternative web process if using start.py for migrations
