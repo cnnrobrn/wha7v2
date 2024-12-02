@@ -502,7 +502,7 @@ def handle_instagram_messages():
                                         reply = f"{clothing_items.Response} We found the following items:"
                                         for items in clothing_items.Article:
                                             reply += f"\n - {items.Item}"
-                                        reply += "\n \n You can view the outfit on the Wha7 app. Join the waitlist at https://www.wha7.com/f/5f804b34-9f3a-4bd6-a9e5-bf21e2a9018d"
+                                        reply += "\n \n You can view the outfit on the Wha7 app. Download from the App Store!"
                                     elif clothing_items.Purpose == 2:
                                         reply = clothing_items.Response
                                     else:
