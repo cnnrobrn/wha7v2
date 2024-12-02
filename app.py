@@ -46,6 +46,9 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy()
 db.init_app(app)
 
+# Initialize migrations - add this line
+migrate = Migrate(app, db)
+
 # Initialize database engine from wha7_models
 engine, session_factory = init_db()
 
