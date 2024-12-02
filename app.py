@@ -346,17 +346,31 @@ def database_commit(clothing_items, from_number, base64_image_data=None, instagr
     with app.app_context():
         Session = session_factory()
         try:
-            # Create or get the PhoneNumber
-            phone = Session.query(PhoneNumber).filter_by(phone_number=from_number).first()
+            # First check if there's an existing record with this Instagram username
+            phone = None
+            if instagram_username:
+                phone = Session.query(PhoneNumber).filter_by(instagram_username=instagram_username).first()
+            
+            # If no record found by Instagram username, try finding by phone number
+            if not phone and from_number:
+                phone = Session.query(PhoneNumber).filter_by(phone_number=from_number).first()
+            
+            # If still no record found, create a new one
             if not phone:
-                phone = PhoneNumber(phone_number=from_number, instagram_username=instagram_username)
+                phone = PhoneNumber(
+                    phone_number=from_number,
+                    instagram_username=instagram_username
+                )
                 Session.add(phone)
                 Session.commit()
-            elif instagram_username and not Session.query(PhoneNumber).filter_by(instagram_username=instagram_username).first():
-                # Update existing record with Instagram username if not already set
-                phone = PhoneNumber(phone_number=from_number, instagram_username=instagram_username)
-                Session.add(phone)
-                Session.commit()
+            else:
+                # Update existing record if needed
+                if instagram_username and not phone.instagram_username:
+                    phone.instagram_username = instagram_username
+                    Session.commit()
+                elif from_number and not phone.phone_number:
+                    phone.phone_number = from_number
+                    Session.commit()
 
             # Create a new Outfit
             outfit = Outfit(phone_id=phone.id, image_data=base64_image_data, description="Outfit from image")
@@ -365,20 +379,18 @@ def database_commit(clothing_items, from_number, base64_image_data=None, instagr
                     
             if clothing_items.Article is not None:
                 for item in clothing_items.Article:
-                    new_item = Item(outfit_id=outfit.id, description=item.Item, search=item.Amazon_Search, processed_at=None)
+                    new_item = Item(
+                        outfit_id=outfit.id, 
+                        description=item.Item, 
+                        search=item.Amazon_Search, 
+                        processed_at=None
+                    )
                     Session.add(new_item)
                     Session.commit()
             else:
                 print("No items found in clothing_items.Article")
         finally:
             Session.close()
-            
-def format_phone_number(phone_number):
-    phone_number = phone_number.strip().replace("-", "").replace("(", "").replace(")", "").replace(" ", "").replace("+1", "")
-    if not phone_number.startswith("+1"):
-        phone_number = "+1" + phone_number
-    return phone_number
-
 
 def get_unread_messages():
     """Fetch unread direct messages"""
