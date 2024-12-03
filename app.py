@@ -776,7 +776,7 @@ def process_reels(reel_url, instagram_username, sender_id):
             total_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
             max_frames_to_process = min(total_frames, 300)
             frame_interval = int(fps * 2)
-            similarity_threshold = 0.70
+            similarity_threshold = 0.80
             
             unique_frames = []
             previous_frame = None
