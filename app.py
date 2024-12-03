@@ -577,8 +577,6 @@ def verify_webhook():
     token = request.args.get('hub.verify_token')
     challenge = request.args.get('hub.challenge')
 
-    print(f"Received verification request - Mode: {mode}, Token: {token}, Challenge: {challenge}")
-
     # Check if mode and token are in the request
     if mode and token:
         # Check the mode and token sent match your verify token
@@ -614,7 +612,6 @@ def handle_instagram_messages():
                     continue
                     
                 for messaging in messaging_list:
-                    print("4. Processing messaging item")
                         
                     # Extract sender ID
                     sender_id = messaging.get('sender', {}).get('id')
@@ -640,7 +637,6 @@ def handle_instagram_messages():
                     if not attachments:
                         print("No attachments found")
                         reply = send_graph_api_reply(sender_id, "Please send a screenshot of a TikTok or Reel. You can access outfits you've already shared on our app or after signing up via https://www.wha7.com/f/5f804b34-9f3a-4bd6-a9e5-bf21e2a9018d")
-                        print(f"Default message response: {reply}")
                         continue
 
                     # Process the first attachment
@@ -649,20 +645,13 @@ def handle_instagram_messages():
                     media_url = attachment.get('payload', {}).get('url')
                     
                     if not media_url:
-                        print("No media URL found in attachment")
                         continue
-                    
-                    print(f"8. Processing media URL: {media_url}")
-                    print(f"Media type: {media_type}")
-                    
                     try:
                         # Check if the media is a video/reel
                         if media_type in ['video', 'ig_reel']:
-                            print("Processing video/reel content")
                             send_graph_api_reply(sender_id,"🎬 Exciting reel spotted! Let's see what we've got...")
 
                             reply = process_reels_with_clothing_detection(media_url, sender_username,sender_id)
-                            print(f"11. Sending final reply for video: {reply}")
 
                         else:
                             # Handle image processing as before
@@ -683,7 +672,6 @@ def handle_instagram_messages():
                                         "", 
                                         instagram_username=sender_username
                                     )
-                                    print("10. Image processed successfully")
                                     send_graph_api_reply(sender_id,"🎨 Almost ready to share your masterpiece! 🌟")
 
                                     if hasattr(clothing_items, 'Purpose'):
@@ -697,7 +685,6 @@ def handle_instagram_messages():
                                         else:
                                             reply = "I'm sorry, I'm not sure how to respond to that. Can you retry?"
                                         
-                                        print(f"11. Sending final reply: {reply}")
                                         response = send_graph_api_reply(sender_id, reply)
                                         print(f"12. Final response: {response}")
                                 except Exception as e:
@@ -727,10 +714,8 @@ def send_graph_api_reply(user_id, message):
             'recipient': {'id': user_id},
             'message': {'text': message}
         }
-        print(f"Sending message to {user_id}: {message}")
         response = requests.post(url, headers=headers, json=data)
         response_json = response.json()
-        print(f"Instagram API response: {response_json}")
         return response_json
     except Exception as e:
         print(f"Error sending message: {str(e)}")
