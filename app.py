@@ -16,7 +16,12 @@ import urllib.parse
 import psycopg2
 from datetime import datetime, timezone
 from dotenv import load_dotenv
-
+import cv2
+import numpy as np
+from io import BytesIO
+from PIL import Image
+import requests
+from skimage.metrics import structural_similarity as ssim
 
 # wha7_models imports
 from wha7_models import init_db, PhoneNumber, Outfit, Item, Link, ReferralCode, Referral
@@ -608,7 +613,7 @@ def handle_instagram_messages():
                 for messaging in messaging_list:
                     print("4. Processing messaging item")
                         
-                        # Extract sender ID
+                    # Extract sender ID
                     sender_id = messaging.get('sender', {}).get('id')
                     if sender_id:
                         # Fetch the username using the sender ID
@@ -637,6 +642,7 @@ def handle_instagram_messages():
 
                     # Process the first attachment
                     attachment = attachments[0]
+                    media_type = attachment.get('type', '')
                     media_url = attachment.get('payload', {}).get('url')
                     
                     if not media_url:
@@ -644,48 +650,57 @@ def handle_instagram_messages():
                         continue
                     
                     print(f"8. Processing media URL: {media_url}")
+                    print(f"Media type: {media_type}")
                     
-                    # Fetch the image
                     try:
-                        media_response = requests.get(media_url)
-                        print(f"9. Media fetch status: {media_response.status_code}")
-                        
-                        if media_response.status_code == 200:
-                            image_content = media_response.content
-                            base64_image = base64.b64encode(image_content).decode('utf-8')
-                            
-                            try:
-                                clothing_items = process_response(
-                                    base64_image, 
-                                    None, 
-                                    "", 
-                                    instagram_username=sender_username
-                                )
-                                print("10. Image processed successfully")
-                                
-                                if hasattr(clothing_items, 'Purpose'):
-                                    if clothing_items.Purpose == 1:
-                                        reply = f"{clothing_items.Response} We found the following items:"
-                                        for items in clothing_items.Article:
-                                            reply += f"\n - {items.Item}"
-                                        reply += "\n \n You can view the outfit on the Wha7 app. Download from the App Store!"
-                                    elif clothing_items.Purpose == 2:
-                                        reply = clothing_items.Response
-                                    else:
-                                        reply = "I'm sorry, I'm not sure how to respond to that. Can you retry?"
-                                    
-                                    print(f"11. Sending final reply: {reply}")
-                                    response = send_graph_api_reply(sender_id, reply)
-                                    print(f"12. Final response: {response}")
-                            except Exception as e:
-                                print(f"Error in processing response: {e}")
-                                send_graph_api_reply(sender_id, "Sorry, I had trouble processing your image. Please try again.")
+                        # Check if the media is a video/reel
+                        if media_type in ['video', 'reel']:
+                            print("Processing video/reel content")
+                            reply = process_reels(media_url, sender_username)
+                            print(f"11. Sending final reply for video: {reply}")
+                            response = send_graph_api_reply(sender_id, reply)
+                            print(f"12. Final response: {response}")
                         else:
-                            print(f"Media fetch failed with status {media_response.status_code}")
-                            send_graph_api_reply(sender_id, "Sorry, I couldn't access your image. Please try sending it again.")
+                            # Handle image processing as before
+                            media_response = requests.get(media_url)
+                            print(f"9. Media fetch status: {media_response.status_code}")
+                            
+                            if media_response.status_code == 200:
+                                image_content = media_response.content
+                                base64_image = base64.b64encode(image_content).decode('utf-8')
+                                
+                                try:
+                                    clothing_items = process_response(
+                                        base64_image, 
+                                        None, 
+                                        "", 
+                                        instagram_username=sender_username
+                                    )
+                                    print("10. Image processed successfully")
+                                    
+                                    if hasattr(clothing_items, 'Purpose'):
+                                        if clothing_items.Purpose == 1:
+                                            reply = f"{clothing_items.Response} We found the following items:"
+                                            for items in clothing_items.Article:
+                                                reply += f"\n - {items.Item}"
+                                            reply += "\n \n You can view the outfit on the Wha7 app. Download from the App Store!"
+                                        elif clothing_items.Purpose == 2:
+                                            reply = clothing_items.Response
+                                        else:
+                                            reply = "I'm sorry, I'm not sure how to respond to that. Can you retry?"
+                                        
+                                        print(f"11. Sending final reply: {reply}")
+                                        response = send_graph_api_reply(sender_id, reply)
+                                        print(f"12. Final response: {response}")
+                                except Exception as e:
+                                    print(f"Error in processing response: {e}")
+                                    send_graph_api_reply(sender_id, "Sorry, I had trouble processing your image. Please try again.")
+                            else:
+                                print(f"Media fetch failed with status {media_response.status_code}")
+                                send_graph_api_reply(sender_id, "Sorry, I couldn't access your image. Please try sending it again.")
                     except Exception as e:
-                        print(f"Error fetching media: {e}")
-                        send_graph_api_reply(sender_id, "Sorry, there was an error accessing your image. Please try again.")
+                        print(f"Error processing media: {e}")
+                        send_graph_api_reply(sender_id, "Sorry, there was an error processing your media. Please try again.")
 
         return jsonify({'status': 'success'}), 200
     
@@ -727,6 +742,110 @@ def get_username(sender_id):
     else:
         print(f"Failed to fetch username for sender_id {sender_id}. Error: {response.text}")
         return None
+
+
+
+def process_reels(reel_url, instagram_username):
+    """
+    Process Instagram reels by extracting frames, analyzing differences,
+    and identifying unique outfits.
+    
+    Args:
+        reel_url (str): URL of the Instagram reel
+        instagram_username (str): Instagram username of the sender
+        
+    Returns:
+        str: Formatted reply with outfit information
+    """
+    try:
+        # Download the video content
+        response = requests.get(reel_url, stream=True)
+        if response.status_code != 200:
+            return "Sorry, I couldn't access the reel. Please try again."
+            
+        # Save video content to temporary file
+        temp_file = BytesIO(response.content)
+        temp_file.seek(0)
+        
+        # Open video file
+        video = cv2.VideoCapture(temp_file.name)
+        if not video.isOpened():
+            return "Sorry, I couldn't process the reel. Please try again."
+
+        # Video properties
+        fps = video.get(cv2.CAP_PROP_FPS)
+        total_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+        duration = total_frames / fps
+        
+        # Parameters for frame extraction
+        frame_interval = int(fps)  # Extract one frame per second
+        similarity_threshold = 0.85  # Threshold for determining unique frames
+        
+        unique_frames = []
+        previous_frame = None
+        frame_count = 0
+        
+        while video.isOpened():
+            ret, frame = video.read()
+            if not ret:
+                break
+                
+            if frame_count % frame_interval == 0:
+                # Convert frame to grayscale for comparison
+                gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                
+                # Compare with previous frame if it exists
+                is_unique = True
+                if previous_frame is not None:
+                    # Resize frames to same size if necessary
+                    if previous_frame.shape != gray_frame.shape:
+                        gray_frame = cv2.resize(gray_frame, previous_frame.shape[::-1])
+                    
+                    # Calculate structural similarity
+                    similarity = ssim(previous_frame, gray_frame)
+                    is_unique = similarity < similarity_threshold
+                
+                if is_unique:
+                    # Convert frame to base64 for processing
+                    success, buffer = cv2.imencode('.jpg', frame)
+                    if success:
+                        base64_image = base64.b64encode(buffer).decode('utf-8')
+                        unique_frames.append(base64_image)
+                        previous_frame = gray_frame
+            
+            frame_count += 1
+        
+        video.release()
+        
+        # Process unique frames
+        all_responses = []
+        for base64_image in unique_frames:
+            clothing_items = process_response(
+                base64_image,
+                None,
+                "",
+                instagram_username=instagram_username
+            )
+            
+            if hasattr(clothing_items, 'Purpose') and clothing_items.Purpose == 1:
+                outfit_response = f"\nOutfit:\n{clothing_items.Response}\nItems found:"
+                for item in clothing_items.Article:
+                    outfit_response += f"\n- {item.Item}"
+                all_responses.append(outfit_response)
+        
+        # Construct final reply
+        if all_responses:
+            final_reply = f"I found {len(all_responses)} different outfits in your reel:" + \
+                         "\n".join(all_responses) + \
+                         "\n\nYou can view all outfits on the Wha7 app. Download from the App Store!"
+        else:
+            final_reply = "I couldn't identify any distinct outfits in the reel. Please try again with clearer footage."
+            
+        return final_reply
+        
+    except Exception as e:
+        print(f"Error processing reel: {str(e)}")
+        return "Sorry, I encountered an error while processing your reel. Please try again."
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
