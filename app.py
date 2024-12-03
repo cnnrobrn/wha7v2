@@ -654,7 +654,7 @@ def handle_instagram_messages():
                     
                     try:
                         # Check if the media is a video/reel
-                        if media_type in ['video', 'reel']:
+                        if media_type in ['video', 'ig_reel']:
                             print("Processing video/reel content")
                             reply = process_reels(media_url, sender_username)
                             print(f"11. Sending final reply for video: {reply}")
