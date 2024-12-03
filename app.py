@@ -445,7 +445,7 @@ def analyze_image_with_openai(base64_image=None,text=None,true_prompt=prompt,for
                 }
             ],
             response_format=format,
-            max_tokens=2000,
+            max_tokens=5000,
         )
         return response.choices[0].message.parsed
     except Exception as e:
