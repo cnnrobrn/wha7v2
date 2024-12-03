@@ -898,6 +898,7 @@ def process_reels_with_clothing_detection(reel_url, instagram_username, sender_i
                                     description=item.Item,
                                     search=item.Amazon_Search
                                 )
+                                print("Committing new item {new_item}")
                                 Session.add(new_item)
                             
                             all_responses.append(outfit_response)
