@@ -782,7 +782,7 @@ def process_reels(reel_url, instagram_username, sender_id):
             unique_frames = []
             previous_frame = None
             frame_count = 0
-            max_unique_frames = 10
+            max_unique_frames = 20
             
             while video.isOpened() and frame_count < max_frames_to_process and len(unique_frames) < max_unique_frames:
                 ret, frame = video.read()
