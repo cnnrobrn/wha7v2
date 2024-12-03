@@ -22,6 +22,8 @@ from io import BytesIO
 from PIL import Image
 import requests
 from skimage.metrics import structural_similarity as ssim
+import tempfile
+import os
 
 # wha7_models imports
 from wha7_models import init_db, PhoneNumber, Outfit, Item, Link, ReferralCode, Referral
@@ -763,89 +765,102 @@ def process_reels(reel_url, instagram_username):
         if response.status_code != 200:
             return "Sorry, I couldn't access the reel. Please try again."
             
-        # Save video content to temporary file
-        temp_file = BytesIO(response.content)
-        temp_file.seek(0)
+        # Create a temporary file to store the video
+        with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as temp_file:
+            # Write the video content to the temporary file
+            temp_file.write(response.content)
+            temp_file_path = temp_file.name
         
-        # Open video file
-        video = cv2.VideoCapture(temp_file.name)
-        if not video.isOpened():
-            return "Sorry, I couldn't process the reel. Please try again."
+        try:
+            # Open video file using the temporary file path
+            video = cv2.VideoCapture(temp_file_path)
+            if not video.isOpened():
+                return "Sorry, I couldn't process the reel. Please try again."
 
-        # Video properties
-        fps = video.get(cv2.CAP_PROP_FPS)
-        total_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-        duration = total_frames / fps
-        
-        # Parameters for frame extraction
-        frame_interval = int(fps)  # Extract one frame per second
-        similarity_threshold = 0.85  # Threshold for determining unique frames
-        
-        unique_frames = []
-        previous_frame = None
-        frame_count = 0
-        
-        while video.isOpened():
-            ret, frame = video.read()
-            if not ret:
-                break
-                
-            if frame_count % frame_interval == 0:
-                # Convert frame to grayscale for comparison
-                gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                
-                # Compare with previous frame if it exists
-                is_unique = True
-                if previous_frame is not None:
-                    # Resize frames to same size if necessary
-                    if previous_frame.shape != gray_frame.shape:
-                        gray_frame = cv2.resize(gray_frame, previous_frame.shape[::-1])
+            # Video properties
+            fps = video.get(cv2.CAP_PROP_FPS)
+            total_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+            duration = total_frames / fps
+            
+            # Parameters for frame extraction
+            frame_interval = int(fps)  # Extract one frame per second
+            similarity_threshold = 0.85  # Threshold for determining unique frames
+            
+            unique_frames = []
+            previous_frame = None
+            frame_count = 0
+            
+            while video.isOpened():
+                ret, frame = video.read()
+                if not ret:
+                    break
                     
-                    # Calculate structural similarity
-                    similarity = ssim(previous_frame, gray_frame)
-                    is_unique = similarity < similarity_threshold
+                if frame_count % frame_interval == 0:
+                    # Convert frame to grayscale for comparison
+                    gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                    
+                    # Compare with previous frame if it exists
+                    is_unique = True
+                    if previous_frame is not None:
+                        # Resize frames to same size if necessary
+                        if previous_frame.shape != gray_frame.shape:
+                            gray_frame = cv2.resize(gray_frame, previous_frame.shape[::-1])
+                        
+                        # Calculate structural similarity
+                        similarity = ssim(previous_frame, gray_frame)
+                        is_unique = similarity < similarity_threshold
+                    
+                    if is_unique:
+                        # Convert frame to base64 for processing
+                        success, buffer = cv2.imencode('.jpg', frame)
+                        if success:
+                            base64_image = base64.b64encode(buffer).decode('utf-8')
+                            unique_frames.append(base64_image)
+                            previous_frame = gray_frame
                 
-                if is_unique:
-                    # Convert frame to base64 for processing
-                    success, buffer = cv2.imencode('.jpg', frame)
-                    if success:
-                        base64_image = base64.b64encode(buffer).decode('utf-8')
-                        unique_frames.append(base64_image)
-                        previous_frame = gray_frame
+                frame_count += 1
             
-            frame_count += 1
-        
-        video.release()
-        
-        # Process unique frames
-        all_responses = []
-        for base64_image in unique_frames:
-            clothing_items = process_response(
-                base64_image,
-                None,
-                "",
-                instagram_username=instagram_username
-            )
+            video.release()
+
+            # Process unique frames
+            all_responses = []
+            for base64_image in unique_frames:
+                clothing_items = process_response(
+                    base64_image,
+                    None,
+                    "",
+                    instagram_username=instagram_username
+                )
+                
+                if hasattr(clothing_items, 'Purpose') and clothing_items.Purpose == 1:
+                    outfit_response = f"\nOutfit:\n{clothing_items.Response}\nItems found:"
+                    for item in clothing_items.Article:
+                        outfit_response += f"\n- {item.Item}"
+                    all_responses.append(outfit_response)
             
-            if hasattr(clothing_items, 'Purpose') and clothing_items.Purpose == 1:
-                outfit_response = f"\nOutfit:\n{clothing_items.Response}\nItems found:"
-                for item in clothing_items.Article:
-                    outfit_response += f"\n- {item.Item}"
-                all_responses.append(outfit_response)
-        
-        # Construct final reply
-        if all_responses:
-            final_reply = f"I found {len(all_responses)} different outfits in your reel:" + \
-                         "\n".join(all_responses) + \
-                         "\n\nYou can view all outfits on the Wha7 app. Download from the App Store!"
-        else:
-            final_reply = "I couldn't identify any distinct outfits in the reel. Please try again with clearer footage."
+            # Clean up temporary file
+            os.unlink(temp_file_path)
             
-        return final_reply
+            # Construct final reply
+            if all_responses:
+                final_reply = f"I found {len(all_responses)} different outfits in your reel:" + \
+                             "\n".join(all_responses) + \
+                             "\n\nYou can view all outfits on the Wha7 app. Download from the App Store!"
+            else:
+                final_reply = "I couldn't identify any distinct outfits in the reel. Please try again with clearer footage."
+                
+            return final_reply
+            
+        finally:
+            # Make sure video is released and temp file is cleaned up
+            if 'video' in locals():
+                video.release()
+            if os.path.exists(temp_file_path):
+                os.unlink(temp_file_path)
         
     except Exception as e:
         print(f"Error processing reel: {str(e)}")
         return "Sorry, I encountered an error while processing your reel. Please try again."
-
+    
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
