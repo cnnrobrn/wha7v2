@@ -452,7 +452,7 @@ def analyze_image_with_openai(base64_image=None,text=None,true_prompt=prompt,for
     except Exception as e:
         print(f"Error analyzing image with OpenAI: {e}")
         return None
-def process_response(base64_image, from_number, text, prompt_text=prompt, format=Outfits, instagram_username=None, video=False):
+def process_response(base64_image, from_number=None, text=None, prompt_text=prompt, format=Outfits, instagram_username=None, video=False):
     if base64_image:
         base64_image_data = f"data:image/jpeg;base64,{base64_image}"
         clothing_items = analyze_image_with_openai(base64_image_data, text, prompt_text, format)
@@ -489,7 +489,7 @@ def get_recommendation_id(item_description):
     else:
         # Handle error (e.g., log the error, return a default value)
         return "Error"
-def database_commit(clothing_items, from_number, base64_image_data=None, instagram_username=None,video=False):
+def database_commit(clothing_items, from_number, base64_image_data=None, instagram_username=None):
     with app.app_context():
         Session = session_factory()
         try:
@@ -879,12 +879,10 @@ def process_reels_with_clothing_detection(reel_url, instagram_username, sender_i
                 for idx, base64_image in enumerate(unique_frames):
                     try:
                         # Remove the prefix for OpenAI processing
-                        image_without_prefix = base64_image.split('base64,')[1]
+                        image_without_prefix = base64_image.split('data:image/jpeg;base64,')[1]
                         
                         clothing_items = process_response(
-                            image_without_prefix,
-                            None,
-                            "",
+                            base64_image=image_without_prefix,
                             instagram_username=instagram_username,
                             video=True
                         )
