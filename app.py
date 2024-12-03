@@ -749,26 +749,20 @@ def get_username(sender_id):
 
 def process_reels(reel_url, instagram_username):
     """
-    Process Instagram reels by extracting frames, analyzing differences,
-    and identifying unique outfits.
-    
-    Args:
-        reel_url (str): URL of the Instagram reel
-        instagram_username (str): Instagram username of the sender
-        
-    Returns:
-        str: Formatted reply with outfit information
+    Process Instagram reels with optimizations for production environment.
     """
     try:
-        # Download the video content
-        response = requests.get(reel_url, stream=True)
+        # Set a timeout for the video download
+        response = requests.get(reel_url, stream=True, timeout=10)
         if response.status_code != 200:
             return "Sorry, I couldn't access the reel. Please try again."
             
-        # Create a temporary file to store the video
+        # Create a temporary file with a shorter processing window
         with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as temp_file:
             # Write the video content to the temporary file
-            temp_file.write(response.content)
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:
+                    temp_file.write(chunk)
             temp_file_path = temp_file.name
         
         try:
@@ -777,41 +771,40 @@ def process_reels(reel_url, instagram_username):
             if not video.isOpened():
                 return "Sorry, I couldn't process the reel. Please try again."
 
-            # Video properties
-            fps = video.get(cv2.CAP_PROP_FPS)
+            # Video properties with constraints
+            fps = min(video.get(cv2.CAP_PROP_FPS), 30)  # Cap at 30 fps
             total_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-            duration = total_frames / fps
+            max_frames_to_process = min(total_frames, 300)  # Limit to 10 seconds at 30fps
             
-            # Parameters for frame extraction
-            frame_interval = int(fps)  # Extract one frame per second
-            similarity_threshold = 0.85  # Threshold for determining unique frames
+            # Increase frame interval to process fewer frames
+            frame_interval = int(fps * 2)  # Extract one frame every 2 seconds
+            similarity_threshold = 0.80  # Slightly lower threshold
             
             unique_frames = []
             previous_frame = None
             frame_count = 0
             
-            while video.isOpened():
+            # Limit the number of unique frames we'll process
+            max_unique_frames = 5
+            
+            while video.isOpened() and frame_count < max_frames_to_process and len(unique_frames) < max_unique_frames:
                 ret, frame = video.read()
                 if not ret:
                     break
                     
                 if frame_count % frame_interval == 0:
-                    # Convert frame to grayscale for comparison
+                    # Resize frame to reduce processing time
+                    frame = cv2.resize(frame, (640, 360))  # Smaller size for processing
                     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
                     
-                    # Compare with previous frame if it exists
                     is_unique = True
                     if previous_frame is not None:
-                        # Resize frames to same size if necessary
                         if previous_frame.shape != gray_frame.shape:
                             gray_frame = cv2.resize(gray_frame, previous_frame.shape[::-1])
-                        
-                        # Calculate structural similarity
                         similarity = ssim(previous_frame, gray_frame)
                         is_unique = similarity < similarity_threshold
                     
                     if is_unique:
-                        # Convert frame to base64 for processing
                         success, buffer = cv2.imencode('.jpg', frame)
                         if success:
                             base64_image = base64.b64encode(buffer).decode('utf-8')
@@ -822,26 +815,29 @@ def process_reels(reel_url, instagram_username):
             
             video.release()
 
-            # Process unique frames
+            # Process frames with error handling for each
             all_responses = []
-            for base64_image in unique_frames:
-                clothing_items = process_response(
-                    base64_image,
-                    None,
-                    "",
-                    instagram_username=instagram_username
-                )
-                
-                if hasattr(clothing_items, 'Purpose') and clothing_items.Purpose == 1:
-                    outfit_response = f"\nOutfit:\n{clothing_items.Response}\nItems found:"
-                    for item in clothing_items.Article:
-                        outfit_response += f"\n- {item.Item}"
-                    all_responses.append(outfit_response)
+            for idx, base64_image in enumerate(unique_frames):
+                try:
+                    clothing_items = process_response(
+                        base64_image,
+                        None,
+                        "",
+                        instagram_username=instagram_username
+                    )
+                    
+                    if hasattr(clothing_items, 'Purpose') and clothing_items.Purpose == 1:
+                        outfit_response = f"\nOutfit {idx + 1}:\n{clothing_items.Response}\nItems found:"
+                        for item in clothing_items.Article:
+                            outfit_response += f"\n- {item.Item}"
+                        all_responses.append(outfit_response)
+                except Exception as e:
+                    print(f"Error processing frame {idx}: {str(e)}")
+                    continue
             
-            # Clean up temporary file
+            # Clean up
             os.unlink(temp_file_path)
             
-            # Construct final reply
             if all_responses:
                 final_reply = f"I found {len(all_responses)} different outfits in your reel:" + \
                              "\n".join(all_responses) + \
@@ -852,11 +848,17 @@ def process_reels(reel_url, instagram_username):
             return final_reply
             
         finally:
-            # Make sure video is released and temp file is cleaned up
             if 'video' in locals():
                 video.release()
             if os.path.exists(temp_file_path):
-                os.unlink(temp_file_path)
+                try:
+                    os.unlink(temp_file_path)
+                except:
+                    pass
+        
+    except Exception as e:
+        print(f"Error processing reel: {str(e)}")
+        return "Sorry, I encountered an error while processing your reel. Please try again."
         
     except Exception as e:
         print(f"Error processing reel: {str(e)}")
