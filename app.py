@@ -24,7 +24,7 @@ import requests
 from skimage.metrics import structural_similarity as ssim
 import tempfile
 import os
-import EnhancedClothingDetector
+from EnhancedClothingDetector import EnhancedClothingDetector
 
 # wha7_models imports
 from wha7_models import init_db, PhoneNumber, Outfit, Item, Link, ReferralCode, Referral
