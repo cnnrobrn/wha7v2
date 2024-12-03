@@ -617,7 +617,7 @@ def handle_instagram_messages():
                         
                     # Extract sender ID
                     sender_id = messaging.get('sender', {}).get('id')
-                    if sender_id:
+                    if sender_id and sender_id != "17841416291146051":
                         # Fetch the username using the sender ID
                         sender_username = get_username(sender_id)
                         if sender_username:
