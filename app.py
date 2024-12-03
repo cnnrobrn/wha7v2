@@ -658,7 +658,8 @@ def handle_instagram_messages():
                         # Check if the media is a video/reel
                         if media_type in ['video', 'ig_reel']:
                             print("Processing video/reel content")
-                            send_graph_api_reply(sender_id,"Reel recieved. Processing now. Please wait...")
+                            send_graph_api_reply(sender_id,"🎬 Exciting reel spotted! Let's see what we've got...")
+
                             reply = process_reels(media_url, sender_username,sender_id)
                             print(f"11. Sending final reply for video: {reply}")
 
@@ -670,8 +671,10 @@ def handle_instagram_messages():
                             
                             if media_response.status_code == 200:
                                 image_content = media_response.content
+                                send_graph_api_reply(sender_id,"📸 Capturing your moment...")
                                 base64_image = base64.b64encode(image_content).decode('utf-8')
-                                
+                                send_graph_api_reply(sender_id,"✨ Photo received! Working some magic ⚡")
+
                                 try:
                                     clothing_items = process_response(
                                         base64_image, 
@@ -680,7 +683,8 @@ def handle_instagram_messages():
                                         instagram_username=sender_username
                                     )
                                     print("10. Image processed successfully")
-                                    
+                                    send_graph_api_reply(sender_id,"🎨 Almost ready to share your masterpiece! 🌟")
+
                                     if hasattr(clothing_items, 'Purpose'):
                                         if clothing_items.Purpose == 1:
                                             reply = f"{clothing_items.Response} We found the following items:"
@@ -816,6 +820,7 @@ def process_reels(reel_url, instagram_username, sender_id):
 
             # Process frames with error handling for each
             all_responses = []
+            send_graph_api_reply(sender_id,"🎯 Target acquired! Processing your awesome content 🔄")
             for idx, base64_image in enumerate(unique_frames):
                 try:
                     clothing_items = process_response(
@@ -836,7 +841,7 @@ def process_reels(reel_url, instagram_username, sender_id):
             
             # Clean up
             os.unlink(temp_file_path)
-            
+            send_graph_api_reply(sender_id,"⚡ Almost there! (Beta feature - might see some déjà vu content! 😉)")
             if all_responses:
                 final_reply = f"I found {len(all_responses)} different outfits in your reel:"
                 send_graph_api_reply(sender_id, final_reply)
