@@ -9,6 +9,7 @@ flask.cli
 alembic
 Flask_Migrate
 gunicorn
+multiprocessing
 
 # API Integrations
 twilio
