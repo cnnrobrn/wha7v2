@@ -658,10 +658,9 @@ def handle_instagram_messages():
                         # Check if the media is a video/reel
                         if media_type in ['video', 'ig_reel']:
                             print("Processing video/reel content")
-                            reply = process_reels(media_url, sender_username)
+                            reply = process_reels(media_url, sender_username,sender_id)
                             print(f"11. Sending final reply for video: {reply}")
-                            response = send_graph_api_reply(sender_id, reply)
-                            print(f"12. Final response: {response}")
+
                         else:
                             # Handle image processing as before
                             media_response = requests.get(media_url)
@@ -747,7 +746,7 @@ def get_username(sender_id):
 
 
 
-def process_reels(reel_url, instagram_username):
+def process_reels(reel_url, instagram_username, sender_id):
     """
     Process Instagram reels with optimizations for production environment.
     """
@@ -829,7 +828,7 @@ def process_reels(reel_url, instagram_username):
                     if hasattr(clothing_items, 'Purpose') and clothing_items.Purpose == 1:
                         outfit_response = f"\nOutfit {idx + 1}:\n{clothing_items.Response}\nItems found:"
                         for item in clothing_items.Article:
-                            outfit_response += f"\n- {item.Item}"
+                            outfit_response = f"\n- {item.Item}"
                         all_responses.append(outfit_response)
                 except Exception as e:
                     print(f"Error processing frame {idx}: {str(e)}")
@@ -839,12 +838,15 @@ def process_reels(reel_url, instagram_username):
             os.unlink(temp_file_path)
             
             if all_responses:
-                final_reply = f"I found {len(all_responses)} different outfits in your reel:" + \
-                             "\n".join(all_responses) + \
-                             "\n\nYou can view all outfits on the Wha7 app. Download from the App Store!"
+                final_reply = f"I found {len(all_responses)} different outfits in your reel:"
+                send_graph_api_reply(sender_id, final_reply)
+                for item in all_responses:
+                    send_graph_api_reply(sender_id,item)
+                send_graph_api_reply(sender_id, "You can view all outfits on the Wha7 app. Download from the App Store!")
+                return final_reply
             else:
                 final_reply = "I couldn't identify any distinct outfits in the reel. Please try again with clearer footage."
-                
+                send_graph_api_reply(sender_id, final_reply)
             return final_reply
             
         finally:
