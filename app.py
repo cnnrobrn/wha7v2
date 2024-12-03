@@ -851,22 +851,27 @@ def process_frames_parallel(frames: List[bytes], params: dict) -> List[dict]:
 
 def process_reels_with_clothing_detection(reel_url: str, instagram_username: str, sender_id: str) -> str:
     """
-    Process reels with optimized frame sampling and memory management.
+    Process reels with more lenient frame validation and better logging.
+    Added debugging information and reduced thresholds for better frame capture.
     """
     try:
         # Initialize detector and parameters
         clothing_detector = EnhancedClothingDetector()
-        max_frames = 5  # Maximum number of frames to process
-        clothing_area_threshold = 0.15
-        unique_frames = []
+        
+        # More lenient thresholds
+        clothing_area_threshold = 0.10  # Reduced from 0.15 to capture more frames
+        max_frames = 8  # Increased from 5 to get more sample frames
+        min_frames_required = 1  # Only need one valid frame to process
+        
+        logger.info(f"Starting reel processing for user: {instagram_username}")
 
-        # Download video in chunks to avoid memory issues
+        # Download video with progress logging
         response = requests.get(reel_url, stream=True, timeout=10)
         if response.status_code != 200:
             logger.error(f"Failed to download reel: {response.status_code}")
             return "Sorry, I couldn't access the reel. Please try again."
 
-        # Save video to temporary file with proper cleanup
+        # Save video to temporary file
         with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as temp_file:
             for chunk in response.iter_content(chunk_size=8192):
                 if chunk:
@@ -879,27 +884,34 @@ def process_reels_with_clothing_detection(reel_url: str, instagram_username: str
                 logger.error("Failed to open video file")
                 return "Sorry, I couldn't process the reel. Please try again."
 
-            # Calculate frame sampling interval
+            # Get video information
             total_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
             fps = video.get(cv2.CAP_PROP_FPS)
             duration = total_frames / fps
             
-            # Sample frames every 2 seconds or evenly space if video is short
-            interval = min(int(fps * 2), total_frames // max_frames)
-            if interval == 0:
-                interval = 1
+            logger.info(f"Video stats - Duration: {duration:.2f}s, Frames: {total_frames}, FPS: {fps}")
+
+            # Calculate optimal frame sampling
+            # For short videos, sample more frequently
+            if duration < 10:  # Short video
+                interval = max(int(fps / 2), 1)  # Sample every half second
+            else:
+                interval = int(fps * 1.5)  # Sample every 1.5 seconds
 
             frame_positions = []
             current_frame = 0
             
-            # Store frame positions instead of frames themselves
+            # Store frame positions for processing
             while current_frame < total_frames and len(frame_positions) < max_frames:
                 frame_positions.append(current_frame)
                 current_frame += interval
 
-            # Process frames at calculated positions
+            logger.info(f"Will process {len(frame_positions)} frames at {interval} frame intervals")
+
+            # Process frames and store results
             all_responses = []
-            send_graph_api_reply(sender_id, "🎯 Target acquired! Processing your content 🔄")
+            processed_frames_count = 0
+            valid_frames_count = 0
 
             # Database operations
             with session_scope() as session:
@@ -910,7 +922,7 @@ def process_reels_with_clothing_detection(reel_url: str, instagram_username: str
                     session.add(phone)
                     session.flush()
 
-                # Store video data
+                # Store video content
                 video_content = open(temp_file_path, 'rb').read()
                 base64_video = f"data:video/mp4;base64,{base64.b64encode(video_content).decode('utf-8')}"
                 
@@ -922,24 +934,34 @@ def process_reels_with_clothing_detection(reel_url: str, instagram_username: str
                 session.add(outfit)
                 session.flush()
 
-                # Process each frame position
+                # Process each frame with detailed logging
                 for idx, position in enumerate(frame_positions):
                     video.set(cv2.CAP_PROP_POS_FRAMES, position)
                     ret, frame = video.read()
                     
                     if not ret:
+                        logger.warning(f"Failed to read frame at position {position}")
                         continue
 
+                    processed_frames_count += 1
+                    
                     # Process frame for clothing detection
                     processing_frame = resize_frame_with_aspect_ratio(frame, target_width=640)
                     _, clothing_boxes = clothing_detector.process_frame(processing_frame)
                     
-                    # Calculate clothing area ratio
+                    # Calculate clothing area ratio with logging
                     frame_area = processing_frame.shape[0] * processing_frame.shape[1]
                     clothing_area = sum(w * h for _, _, w, h in clothing_boxes)
                     clothing_area_ratio = clothing_area / frame_area
                     
+                    logger.info(f"Frame {idx + 1} - Clothing area ratio: {clothing_area_ratio:.3f}")
+                    
+                    # More lenient frame acceptance criteria
+                    frame_valid = False
                     if clothing_area_ratio >= clothing_area_threshold:
+                        frame_valid = True
+                        valid_frames_count += 1
+                        
                         success, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 95])
                         if success:
                             base64_image = f"data:image/jpeg;base64,{base64.b64encode(buffer).decode('utf-8')}"
@@ -970,11 +992,17 @@ def process_reels_with_clothing_detection(reel_url: str, instagram_username: str
                                 logger.error(f"Error processing frame response", exc_info=True)
                                 continue
 
-                    # Clear frame from memory
+                    # Log frame processing result
+                    logger.info(f"Frame {idx + 1} - Valid: {frame_valid}")
+
+                    # Clear memory
                     del frame
                     del processing_frame
                     if 'buffer' in locals():
                         del buffer
+
+            # Log final processing statistics
+            logger.info(f"Processing complete - Total: {processed_frames_count}, Valid: {valid_frames_count}")
 
             # Clean up resources
             video.release()
@@ -989,7 +1017,9 @@ def process_reels_with_clothing_detection(reel_url: str, instagram_username: str
                 send_graph_api_reply(sender_id, "You can view all outfits on the Wha7 app. Download from the App Store!")
                 return final_reply
             else:
-                final_reply = "I couldn't identify any distinct outfits in the reel. Please try again with clearer footage."
+                # More detailed failure message
+                final_reply = (f"I processed {processed_frames_count} frames but couldn't identify clear outfits. "
+                             "For best results, try recording with good lighting and ensure the outfit is clearly visible.")
                 send_graph_api_reply(sender_id, final_reply)
                 return final_reply
             
