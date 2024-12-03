@@ -452,6 +452,7 @@ def analyze_image_with_openai(base64_image=None,text=None,true_prompt=prompt,for
     except Exception as e:
         print(f"Error analyzing image with OpenAI: {e}")
         return None
+
 def process_response(base64_image, from_number=None, text=None, prompt_text=prompt, format=Outfits, instagram_username=None, video=False):
     if base64_image:
         base64_image_data = f"data:image/jpeg;base64,{base64_image}"
@@ -481,6 +482,7 @@ def shorten_url(long_url):
     else:
         print('Error:', response.json().get('error'))
         return None   
+
 def get_recommendation_id(item_description):
     flask_api_url = "https://access.wha7.com/rag_search"  # Replace with your actual URL
     response = requests.post(flask_api_url, json={"item_description": item_description})
@@ -489,6 +491,7 @@ def get_recommendation_id(item_description):
     else:
         # Handle error (e.g., log the error, return a default value)
         return "Error"
+
 def database_commit(clothing_items, from_number, base64_image_data=None, instagram_username=None):
     with app.app_context():
         Session = session_factory()
@@ -552,7 +555,6 @@ def get_unread_messages():
     except Exception as e:
         print(f"Error fetching messages: {e}")
         return []
-
 
 def send_instagram_reply(user_id, message):
     """Send reply to Instagram user"""
@@ -866,6 +868,7 @@ def process_reels_with_clothing_detection(reel_url, instagram_username, sender_i
                         # Remove the prefix for OpenAI processing
                         image_without_prefix = base64_image.split('data:image/jpeg;base64,')[1]
                         
+                        print(f"Processing frame {idx}")
                         clothing_items = process_response(
                             base64_image=image_without_prefix,
                             instagram_username=instagram_username,
@@ -873,6 +876,7 @@ def process_reels_with_clothing_detection(reel_url, instagram_username, sender_i
                         )
                         
                         if hasattr(clothing_items, 'Purpose') and clothing_items.Purpose == 1:
+                            print(f"Processing frame {idx}: {clothing_items.Response}")
                             outfit_response = f"\nOutfit {idx + 1}:\n{clothing_items.Response}\nItems found:"
                             for item in clothing_items.Article:
                                 outfit_response += f"\n- {item.Item}"
