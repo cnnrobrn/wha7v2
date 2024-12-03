@@ -374,6 +374,12 @@ def ios_image():
     process_response(image_content, from_number,text=None)
     return "success"  # Return a response
 
+def format_phone_number(phone_number):
+    phone_number = phone_number.strip().replace("-", "").replace("(", "").replace(")", "").replace(" ", "").replace("+1", "")
+    if not phone_number.startswith("+1"):
+        phone_number = "+1" + phone_number
+    return phone_number
+
 def analyze_text_with_openai(text=None, true_prompt=prompt,format=Outfits):
     try:
         # Example of using OpenAI to generate a response about clothing items
