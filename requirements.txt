@@ -1,36 +1,45 @@
-# Base Flask and Web Framework
-Flask
-Werkzeug
-flask_sqlalchemy
-sqlalchemy
-psycopg2
-flask_cors
-flask.cli
-alembic
-Flask_Migrate
-gunicorn
+# Base Web Framework and Extensions
+Flask==2.3.3
+Werkzeug==2.3.7
+Flask-SQLAlchemy==3.1.1
+SQLAlchemy==2.0.21
+Flask-Migrate==4.0.5
+Flask-CORS==4.0.0
+gunicorn==21.2.0
+alembic==1.12.0
 
+# Database Connectors and ORM Support
+psycopg2-binary==2.9.9  # Binary version for easier deployment
+asyncpg==0.28.0         # Async database support
 
-# API Integrations
-twilio
-openai
-requests
-instagram_private_api
+# API Integrations and Networking
+twilio==8.10.0
+openai==1.3.0           # Latest version for improved API support
+requests==2.31.0
+httpx==0.25.0          # Modern HTTP client with async support
+instagram-private-api==1.6.0.0
 
 # Image and Video Processing
-opencv-python-headless  # Headless version for server deployment
-numpy                   # Required for OpenCV operations
-Pillow                 # For image processing
-scikit-image          # For structural similarity comparisons
+opencv-python-headless==4.8.1.78  # Headless version for server deployment
+numpy==1.24.3                     # Specific version for compatibility with OpenCV
+Pillow==10.0.1                    # For image processing
+scikit-image==0.22.0             # For structural similarity comparisons
 
-# Data Validation and Formatting
-pydantic
-# Environment and Config
-python-dotenv
+# Data Validation and Models
+pydantic==2.4.2         # For data validation and settings management
 
-# Async Support
-asyncpg
-httpx
+# Environment and Configuration
+python-dotenv==1.0.0    # For environment variable management
 
-# Custom Package
+# System Monitoring and Performance
+psutil==5.9.5           # For system and process monitoring
+
+# Custom Packages
+# Note: Requires GitHub authentication
 git+https://${GITHUB_TOKEN}@github.com/cnnrobrn/wha7-models.git@main
+
+# Development Dependencies (optional)
+# pytest==7.4.2          # For testing
+# black==23.9.1          # For code formatting
+# flake8==6.1.0          # For linting
+# mypy==1.5.1            # For type checking
