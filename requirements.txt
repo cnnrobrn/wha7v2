@@ -1,42 +1,36 @@
-# requirements.txt for the SMS Clothing Search App
-
-# Flask for creating the web app
+# Base Flask and Web Framework
 Flask
-
-# Twilio for handling incoming SMS and sending replies
-Twilio
-
-# Requests for making HTTP requests to download images and interact with APIs
-requests
-
-# OpenAI for using the GPT-4 API to analyze text descriptions
-openai
-
-# Werkzeug for secure and advanced web utilities (dependency of Flask)
 Werkzeug
-pydantic
-
-# Gunicorn for deploying Flask on a production server (if hosting outside of local environment)
-Gunicorn
-
-# Additional libraries that might be useful
-# - Pillow for handling images if image pre-processing is required
-# - python-dotenv to load environment variables from a .env file for managing API keys
-Pillow
-python-dotenv
-
-
 flask_sqlalchemy
 sqlalchemy
 psycopg2
-
 flask_cors
 flask.cli
 alembic
-
 Flask_Migrate
+gunicorn
 
-git+https://${GITHUB_TOKEN}@github.com/cnnrobrn/wha7-models.git@main
-asyncpg  # If using async database operations
-httpx    # If making async HTTP requests
+# API Integrations
+twilio
+openai
+requests
 instagram_private_api
+
+# Image and Video Processing
+opencv-python-headless  # Headless version for server deployment
+numpy                   # Required for OpenCV operations
+Pillow                 # For image processing
+scikit-image          # For structural similarity comparisons
+
+# Data Validation and Formatting
+pydantic
+
+# Environment and Config
+python-dotenv
+
+# Async Support
+asyncpg
+httpx
+
+# Custom Package
+git+https://${GITHUB_TOKEN}@github.com/cnnrobrn/wha7-models.git@main
