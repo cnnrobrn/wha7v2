@@ -16,7 +16,6 @@ twilio
 openai
 requests
 instagram_private_api
-cv2
 
 # Image and Video Processing
 opencv-python-headless  # Headless version for server deployment
