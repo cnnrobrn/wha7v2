@@ -851,57 +851,57 @@ def process_frames_parallel(frames: List[bytes], params: dict) -> List[dict]:
 
 def process_reels_with_clothing_detection(reel_url: str, instagram_username: str, sender_id: str) -> str:
     """
-    Enhanced reel processing function with improved error handling, memory management,
-    and parallel processing capabilities.
+    Process reels with optimized frame sampling and memory management.
     """
     try:
-        # Initialize the clothing detector
+        # Initialize detector and parameters
         clothing_detector = EnhancedClothingDetector()
-        
-        # Download the reel video with timeout and error handling
+        max_frames = 5  # Maximum number of frames to process
+        clothing_area_threshold = 0.15
+        unique_frames = []
+
+        # Download video in chunks to avoid memory issues
         response = requests.get(reel_url, stream=True, timeout=10)
         if response.status_code != 200:
             logger.error(f"Failed to download reel: {response.status_code}")
             return "Sorry, I couldn't access the reel. Please try again."
-        
-        # Convert video to base64 with video prefix
-        video_content = response.content
-        base64_video = f"data:video/mp4;base64,{base64.b64encode(video_content).decode('utf-8')}"
-        
-        # Create temporary file with proper cleanup
+
+        # Save video to temporary file with proper cleanup
         with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as temp_file:
-            temp_file.write(video_content)
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:
+                    temp_file.write(chunk)
             temp_file_path = temp_file.name
-        
+
         try:
             video = cv2.VideoCapture(temp_file_path)
             if not video.isOpened():
                 logger.error("Failed to open video file")
                 return "Sorry, I couldn't process the reel. Please try again."
 
-            # Video processing parameters
-            processing_params = {
-                'clothing_detector': clothing_detector,
-                'fps': min(video.get(cv2.CAP_PROP_FPS), 30),
-                'clothing_area_threshold': 0.15,
-                'similarity_threshold': 0.80
-            }
-
-            frames = []
-            while video.isOpened() and len(frames) < MAX_UNIQUE_FRAMES:
-                ret, frame = video.read()
-                if not ret:
-                    break
-                frames.append(frame)
-
-            # Process frames in parallel
-            processed_frames = process_frames_parallel(frames, processing_params)
+            # Calculate frame sampling interval
+            total_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+            fps = video.get(cv2.CAP_PROP_FPS)
+            duration = total_frames / fps
             
-            if not processed_frames:
-                logger.warning("No valid frames processed")
-                return "I couldn't identify any distinct outfits in the reel. Please try again with clearer footage."
+            # Sample frames every 2 seconds or evenly space if video is short
+            interval = min(int(fps * 2), total_frames // max_frames)
+            if interval == 0:
+                interval = 1
 
-            # Database operations with transaction management
+            frame_positions = []
+            current_frame = 0
+            
+            # Store frame positions instead of frames themselves
+            while current_frame < total_frames and len(frame_positions) < max_frames:
+                frame_positions.append(current_frame)
+                current_frame += interval
+
+            # Process frames at calculated positions
+            all_responses = []
+            send_graph_api_reply(sender_id, "🎯 Target acquired! Processing your content 🔄")
+
+            # Database operations
             with session_scope() as session:
                 # Get or create phone number record
                 phone = session.query(PhoneNumber).filter_by(instagram_username=instagram_username).first()
@@ -910,7 +910,10 @@ def process_reels_with_clothing_detection(reel_url: str, instagram_username: str
                     session.add(phone)
                     session.flush()
 
-                # Create main outfit record
+                # Store video data
+                video_content = open(temp_file_path, 'rb').read()
+                base64_video = f"data:video/mp4;base64,{base64.b64encode(video_content).decode('utf-8')}"
+                
                 outfit = Outfit(
                     phone_id=phone.id,
                     image_data=base64_video,
@@ -919,37 +922,59 @@ def process_reels_with_clothing_detection(reel_url: str, instagram_username: str
                 session.add(outfit)
                 session.flush()
 
-                # Process unique frames
-                all_responses = []
-                send_graph_api_reply(sender_id, "🎯 Target acquired! Processing your awesome content 🔄")
-
-                for frame_data in processed_frames:
-                    try:
-                        image_without_prefix = frame_data['base64_image'].split('data:image/jpeg;base64,')[1]
-                        
-                        clothing_items = process_response(
-                            base64_image=image_without_prefix,
-                            instagram_username=instagram_username,
-                            video=True
-                        )
-                        
-                        if hasattr(clothing_items, 'Purpose') and clothing_items.Purpose == 1:
-                            outfit_response = f"\nOutfit {frame_data['index'] + 1}:\n{clothing_items.Response}\nItems found:"
-                            
-                            for item in clothing_items.Article:
-                                outfit_response += f"\n- {item.Item}"
-                                new_item = Item(
-                                    outfit_id=outfit.id,
-                                    description=item.Item,
-                                    search=item.Amazon_Search
-                                )
-                                session.add(new_item)
-                            
-                            all_responses.append(outfit_response)
-                            
-                    except Exception as e:
-                        logger.error(f"Error processing frame response", exc_info=True)
+                # Process each frame position
+                for idx, position in enumerate(frame_positions):
+                    video.set(cv2.CAP_PROP_POS_FRAMES, position)
+                    ret, frame = video.read()
+                    
+                    if not ret:
                         continue
+
+                    # Process frame for clothing detection
+                    processing_frame = resize_frame_with_aspect_ratio(frame, target_width=640)
+                    _, clothing_boxes = clothing_detector.process_frame(processing_frame)
+                    
+                    # Calculate clothing area ratio
+                    frame_area = processing_frame.shape[0] * processing_frame.shape[1]
+                    clothing_area = sum(w * h for _, _, w, h in clothing_boxes)
+                    clothing_area_ratio = clothing_area / frame_area
+                    
+                    if clothing_area_ratio >= clothing_area_threshold:
+                        success, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 95])
+                        if success:
+                            base64_image = f"data:image/jpeg;base64,{base64.b64encode(buffer).decode('utf-8')}"
+                            
+                            try:
+                                image_without_prefix = base64_image.split('data:image/jpeg;base64,')[1]
+                                clothing_items = process_response(
+                                    base64_image=image_without_prefix,
+                                    instagram_username=instagram_username,
+                                    video=True
+                                )
+                                
+                                if hasattr(clothing_items, 'Purpose') and clothing_items.Purpose == 1:
+                                    outfit_response = f"\nOutfit {len(all_responses) + 1}:\n{clothing_items.Response}\nItems found:"
+                                    
+                                    for item in clothing_items.Article:
+                                        outfit_response += f"\n- {item.Item}"
+                                        new_item = Item(
+                                            outfit_id=outfit.id,
+                                            description=item.Item,
+                                            search=item.Amazon_Search
+                                        )
+                                        session.add(new_item)
+                                    
+                                    all_responses.append(outfit_response)
+                                    
+                            except Exception as e:
+                                logger.error(f"Error processing frame response", exc_info=True)
+                                continue
+
+                    # Clear frame from memory
+                    del frame
+                    del processing_frame
+                    if 'buffer' in locals():
+                        del buffer
 
             # Clean up resources
             video.release()
@@ -967,10 +992,6 @@ def process_reels_with_clothing_detection(reel_url: str, instagram_username: str
                 final_reply = "I couldn't identify any distinct outfits in the reel. Please try again with clearer footage."
                 send_graph_api_reply(sender_id, final_reply)
                 return final_reply
-            
-        except Exception as e:
-            logger.error("Error during video processing", exc_info=True)
-            raise
             
         finally:
             if 'video' in locals():
