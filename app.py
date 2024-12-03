@@ -746,44 +746,41 @@ def get_username(sender_id):
 
 
 
+def resize_frame_with_aspect_ratio(frame, target_width=640):
+    """
+    Resize frame while maintaining aspect ratio
+    """
+    height, width = frame.shape[:2]
+    aspect_ratio = width / height
+    target_height = int(target_width / aspect_ratio)
+    return cv2.resize(frame, (target_width, target_height))
+
 def process_reels(reel_url, instagram_username, sender_id):
-    """
-    Process Instagram reels with optimizations for production environment.
-    """
     try:
-        # Set a timeout for the video download
         response = requests.get(reel_url, stream=True, timeout=10)
         if response.status_code != 200:
             return "Sorry, I couldn't access the reel. Please try again."
             
-        # Create a temporary file with a shorter processing window
         with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as temp_file:
-            # Write the video content to the temporary file
             for chunk in response.iter_content(chunk_size=8192):
                 if chunk:
                     temp_file.write(chunk)
             temp_file_path = temp_file.name
         
         try:
-            # Open video file using the temporary file path
             video = cv2.VideoCapture(temp_file_path)
             if not video.isOpened():
                 return "Sorry, I couldn't process the reel. Please try again."
 
-            # Video properties with constraints
-            fps = min(video.get(cv2.CAP_PROP_FPS), 30)  # Cap at 30 fps
+            fps = min(video.get(cv2.CAP_PROP_FPS), 30)
             total_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-            max_frames_to_process = min(total_frames, 300)  # Limit to 10 seconds at 30fps
-            
-            # Increase frame interval to process fewer frames
-            frame_interval = int(fps * 2)  # Extract one frame every 2 seconds
-            similarity_threshold = 0.80  # Slightly lower threshold
+            max_frames_to_process = min(total_frames, 300)
+            frame_interval = int(fps * 2)
+            similarity_threshold = 0.80
             
             unique_frames = []
             previous_frame = None
             frame_count = 0
-            
-            # Limit the number of unique frames we'll process
             max_unique_frames = 5
             
             while video.isOpened() and frame_count < max_frames_to_process and len(unique_frames) < max_unique_frames:
@@ -792,9 +789,9 @@ def process_reels(reel_url, instagram_username, sender_id):
                     break
                     
                 if frame_count % frame_interval == 0:
-                    # Resize frame to reduce processing time
-                    frame = cv2.resize(frame, (640, 360))  # Smaller size for processing
-                    gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                    # Resize for comparison while maintaining aspect ratio
+                    processing_frame = resize_frame_with_aspect_ratio(frame, target_width=640)
+                    gray_frame = cv2.cvtColor(processing_frame, cv2.COLOR_BGR2GRAY)
                     
                     is_unique = True
                     if previous_frame is not None:
@@ -804,7 +801,8 @@ def process_reels(reel_url, instagram_username, sender_id):
                         is_unique = similarity < similarity_threshold
                     
                     if is_unique:
-                        success, buffer = cv2.imencode('.jpg', frame)
+                        # Store original frame (not the resized version) in base64
+                        success, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 95])
                         if success:
                             base64_image = base64.b64encode(buffer).decode('utf-8')
                             unique_frames.append(base64_image)
@@ -828,7 +826,7 @@ def process_reels(reel_url, instagram_username, sender_id):
                     if hasattr(clothing_items, 'Purpose') and clothing_items.Purpose == 1:
                         outfit_response = f"\nOutfit {idx + 1}:\n{clothing_items.Response}\nItems found:"
                         for item in clothing_items.Article:
-                            outfit_response = f"\n- {item.Item}"
+                            outfit_response += f"\n- {item.Item}"
                         all_responses.append(outfit_response)
                 except Exception as e:
                     print(f"Error processing frame {idx}: {str(e)}")
@@ -861,10 +859,7 @@ def process_reels(reel_url, instagram_username, sender_id):
     except Exception as e:
         print(f"Error processing reel: {str(e)}")
         return "Sorry, I encountered an error while processing your reel. Please try again."
-        
-    except Exception as e:
-        print(f"Error processing reel: {str(e)}")
-        return "Sorry, I encountered an error while processing your reel. Please try again."
+
     
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
