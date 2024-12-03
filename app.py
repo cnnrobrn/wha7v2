@@ -658,6 +658,7 @@ def handle_instagram_messages():
                         # Check if the media is a video/reel
                         if media_type in ['video', 'ig_reel']:
                             print("Processing video/reel content")
+                            send_graph_api_reply(sender_id,"Reel recieved. Processing now. Please wait...")
                             reply = process_reels(media_url, sender_username,sender_id)
                             print(f"11. Sending final reply for video: {reply}")
 
@@ -665,6 +666,7 @@ def handle_instagram_messages():
                             # Handle image processing as before
                             media_response = requests.get(media_url)
                             print(f"9. Media fetch status: {media_response.status_code}")
+                            send_graph_api_reply(sender_id,"Post recieved. Processing now. Please wait...")
                             
                             if media_response.status_code == 200:
                                 image_content = media_response.content
