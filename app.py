@@ -1,46 +1,30 @@
-# Standard library imports
-import base64
-import json
-import os
-import tempfile
-import urllib.parse
-from contextlib import contextmanager
-from datetime import datetime, timezone
-from io import BytesIO
-from typing import List, Tuple, Optional
-
-# Web framework and database
+# Framework imports
 from flask import Flask, request, jsonify, redirect
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from sqlalchemy.orm import sessionmaker
 
-# Third-party utilities
-import psutil
-import psycopg2
-from dotenv import load_dotenv
+# Third-party imports
+from twilio.twiml.messaging_response import MessagingResponse
+from openai import OpenAI
 from pydantic import BaseModel
-
-# Image processing and computer vision
+import requests
+import json
+import base64
+import os
+import urllib.parse
+import psycopg2
+from datetime import datetime, timezone
+from dotenv import load_dotenv
 import cv2
 import numpy as np
+from io import BytesIO
 from PIL import Image
-from skimage.metrics import structural_similarity as ssim
-
-# Communication and API services
 import requests
-from openai import OpenAI
-from twilio.twiml.messaging_response import MessagingResponse
-
-
-# Concurrency and logging
-from concurrent.futures import ThreadPoolExecutor
-import logging
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from skimage.metrics import structural_similarity as ssim
+import tempfile
+import os
+from EnhancedClothingDetector import EnhancedClothingDetector
 
 # wha7_models imports
 from wha7_models import init_db, PhoneNumber, Outfit, Item, Link, ReferralCode, Referral
@@ -433,7 +417,7 @@ def analyze_text_with_openai(text=None, true_prompt=prompt,format=Outfits):
     except Exception as e:
         print(f"Error analyzing image with OpenAI: {e}")
         return None   
-def analyze_image_with_openai(base64_image,text="",true_prompt=prompt,format=Outfits):
+def analyze_image_with_openai(base64_image=None,text=None,true_prompt=prompt,format=Outfits):
     try:
         # Example of using OpenAI to generate a response about clothing items
         # Assuming OpenAI GPT-4 can analyze text data about images (would need further development for visual analysis)
@@ -468,13 +452,12 @@ def analyze_image_with_openai(base64_image,text="",true_prompt=prompt,format=Out
     except Exception as e:
         print(f"Error analyzing image with OpenAI: {e}")
         return None
-
-def process_response(base64_image, from_number=None, text="", prompt_text=prompt, format=Outfits, instagram_username=None, video=False):
+def process_response(base64_image, from_number, text, prompt_text=prompt, format=Outfits, instagram_username=None, video=False):
     if base64_image:
         base64_image_data = f"data:image/jpeg;base64,{base64_image}"
         clothing_items = analyze_image_with_openai(base64_image_data, text, prompt_text, format)
-        if format == Outfits and video == False:
-            database_commit(clothing_items, from_number, base64_image_data, instagram_username)
+        if format == Outfits:
+            database_commit(clothing_items, from_number, base64_image_data, instagram_username, video)
     else:
         clothing_items = analyze_text_with_openai(text=text, true_prompt=prompt_text, format=format)      
     return clothing_items
@@ -498,7 +481,6 @@ def shorten_url(long_url):
     else:
         print('Error:', response.json().get('error'))
         return None   
-
 def get_recommendation_id(item_description):
     flask_api_url = "https://access.wha7.com/rag_search"  # Replace with your actual URL
     response = requests.post(flask_api_url, json={"item_description": item_description})
@@ -507,8 +489,7 @@ def get_recommendation_id(item_description):
     else:
         # Handle error (e.g., log the error, return a default value)
         return "Error"
-
-def database_commit(clothing_items, from_number, base64_image_data=None, instagram_username=None):
+def database_commit(clothing_items, from_number, base64_image_data=None, instagram_username=None,video=False):
     with app.app_context():
         Session = session_factory()
         try:
@@ -538,10 +519,11 @@ def database_commit(clothing_items, from_number, base64_image_data=None, instagr
                     phone.phone_number = from_number
                     Session.commit()
 
+            if not video:
             # Create a new Outfit
-            outfit = Outfit(phone_id=phone.id, image_data=base64_image_data, description="Outfit from image")
-            Session.add(outfit)
-            Session.commit()
+                outfit = Outfit(phone_id=phone.id, image_data=base64_image_data, description="Outfit from image")
+                Session.add(outfit)
+                Session.commit()
                     
             if clothing_items.Article is not None:
                 for item in clothing_items.Article:
@@ -572,6 +554,7 @@ def get_unread_messages():
         print(f"Error fetching messages: {e}")
         return []
 
+
 def send_instagram_reply(user_id, message):
     """Send reply to Instagram user"""
     try:
@@ -594,6 +577,8 @@ def verify_webhook():
     mode = request.args.get('hub.mode')
     token = request.args.get('hub.verify_token')
     challenge = request.args.get('hub.challenge')
+
+    print(f"Received verification request - Mode: {mode}, Token: {token}, Challenge: {challenge}")
 
     # Check if mode and token are in the request
     if mode and token:
@@ -630,10 +615,11 @@ def handle_instagram_messages():
                     continue
                     
                 for messaging in messaging_list:
+                    print("4. Processing messaging item")
                         
                     # Extract sender ID
                     sender_id = messaging.get('sender', {}).get('id')
-                    if sender_id and sender_id != "17841416291146051":
+                    if sender_id:
                         # Fetch the username using the sender ID
                         sender_username = get_username(sender_id)
                         if sender_username:
@@ -655,6 +641,7 @@ def handle_instagram_messages():
                     if not attachments:
                         print("No attachments found")
                         reply = send_graph_api_reply(sender_id, "Please send a screenshot of a TikTok or Reel. You can access outfits you've already shared on our app or after signing up via https://www.wha7.com/f/5f804b34-9f3a-4bd6-a9e5-bf21e2a9018d")
+                        print(f"Default message response: {reply}")
                         continue
 
                     # Process the first attachment
@@ -663,13 +650,20 @@ def handle_instagram_messages():
                     media_url = attachment.get('payload', {}).get('url')
                     
                     if not media_url:
+                        print("No media URL found in attachment")
                         continue
+                    
+                    print(f"8. Processing media URL: {media_url}")
+                    print(f"Media type: {media_type}")
+                    
                     try:
                         # Check if the media is a video/reel
                         if media_type in ['video', 'ig_reel']:
+                            print("Processing video/reel content")
                             send_graph_api_reply(sender_id,"🎬 Exciting reel spotted! Let's see what we've got...")
 
                             reply = process_reels_with_clothing_detection(media_url, sender_username,sender_id)
+                            print(f"11. Sending final reply for video: {reply}")
 
                         else:
                             # Handle image processing as before
@@ -690,6 +684,7 @@ def handle_instagram_messages():
                                         "", 
                                         instagram_username=sender_username
                                     )
+                                    print("10. Image processed successfully")
                                     send_graph_api_reply(sender_id,"🎨 Almost ready to share your masterpiece! 🌟")
 
                                     if hasattr(clothing_items, 'Purpose'):
@@ -703,6 +698,7 @@ def handle_instagram_messages():
                                         else:
                                             reply = "I'm sorry, I'm not sure how to respond to that. Can you retry?"
                                         
+                                        print(f"11. Sending final reply: {reply}")
                                         response = send_graph_api_reply(sender_id, reply)
                                         print(f"12. Final response: {response}")
                                 except Exception as e:
@@ -732,8 +728,10 @@ def send_graph_api_reply(user_id, message):
             'recipient': {'id': user_id},
             'message': {'text': message}
         }
+        print(f"Sending message to {user_id}: {message}")
         response = requests.post(url, headers=headers, json=data)
         response_json = response.json()
+        print(f"Instagram API response: {response_json}")
         return response_json
     except Exception as e:
         print(f"Error sending message: {str(e)}")
@@ -766,205 +764,134 @@ def resize_frame_with_aspect_ratio(frame, target_width=640):
     return cv2.resize(frame, (target_width, target_height))
 
 
-
-
-@contextmanager
-def session_scope():
+def process_reels_with_clothing_detection(reel_url, instagram_username, sender_id):
     """
-    Context manager for database sessions that handles commits and rollbacks automatically.
-    Ensures proper resource cleanup even if exceptions occur.
-    """
-    session = session_factory()
-    try:
-        yield session
-        session.commit()
-    except Exception as e:
-        session.rollback()
-        logger.error("Database transaction failed", exc_info=True)
-        raise
-    finally:
-        session.close()
-
-def check_memory_usage() -> bool:
-    """
-    Monitor memory usage and return True if it exceeds the threshold.
-    This helps prevent out-of-memory errors during processing.
-    """
-    process = psutil.Process()
-    memory_info = process.memory_info()
-    if memory_info.rss > MEMORY_THRESHOLD:
-        logger.warning(f"Memory usage exceeding threshold: {memory_info.rss / (1024*1024):.2f} MB")
-        return True
-    return False
-
-def process_single_frame(frame_data: Tuple[int, bytes, dict]) -> Optional[dict]:
-    """
-    Process a single frame with error handling and memory monitoring.
-    Returns processed frame data or None if processing fails.
-    """
-    idx, frame, params = frame_data
-    try:
-        check_memory_usage()
-        
-        # Process frame for clothing detection
-        processing_frame = resize_frame_with_aspect_ratio(frame, target_width=640)
-        _, clothing_boxes = params['clothing_detector'].process_frame(processing_frame)
-        
-        # Calculate clothing area ratio
-        frame_area = processing_frame.shape[0] * processing_frame.shape[1]
-        clothing_area = sum(w * h for _, _, w, h in clothing_boxes)
-        clothing_area_ratio = clothing_area / frame_area
-        
-        if clothing_area_ratio >= params['clothing_area_threshold']:
-            success, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 95])
-            if success:
-                base64_image = f"data:image/jpeg;base64,{base64.b64encode(buffer).decode('utf-8')}"
-                return {
-                    'index': idx,
-                    'base64_image': base64_image,
-                    'clothing_boxes': clothing_boxes
-                }
-    except Exception as e:
-        logger.error(f"Error processing frame {idx}", exc_info=True)
-    
-    return None
-
-def process_frames_parallel(frames: List[bytes], params: dict) -> List[dict]:
-    """
-    Process multiple frames in parallel using a thread pool.
-    Includes memory monitoring and error handling.
-    """
-    frame_data = [(idx, frame, params) for idx, frame in enumerate(frames)]
-    
-    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        results = list(executor.map(process_single_frame, frame_data))
-    
-    return [r for r in results if r is not None]
-
-def process_reels_with_clothing_detection(reel_url: str, instagram_username: str, sender_id: str) -> str:
-    """
-    Process Instagram reels by extracting meaningful frames and analyzing them directly with OpenAI Vision API.
-    This simplified version removes the intermediate clothing detection step and focuses on smart frame sampling.
+    Process reels with clothing detection, storing the video in the image_data field with a prefix.
+    The prefix 'data:video/mp4;base64,' allows the content to be identified as video when retrieved.
     """
     try:
-        logger.info(f"Starting reel processing for user: {instagram_username}")
+        # Initialize the clothing detector
+        clothing_detector = EnhancedClothingDetector()
         
-        # Download video with progress tracking
+        # Download the reel video
         response = requests.get(reel_url, stream=True, timeout=10)
         if response.status_code != 200:
-            logger.error(f"Failed to download reel: {response.status_code}")
             return "Sorry, I couldn't access the reel. Please try again."
-
-        # Save to temporary file while tracking download progress
+        
+        # Convert video to base64 with video prefix
+        video_content = response.content
+        base64_video = f"data:video/mp4;base64,{base64.b64encode(video_content).decode('utf-8')}"
+            
+        # Save to temporary file for frame processing
         with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as temp_file:
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
-                    temp_file.write(chunk)
+            temp_file.write(video_content)
             temp_file_path = temp_file.name
-
+        
         try:
-            # Open video and extract basic information
             video = cv2.VideoCapture(temp_file_path)
             if not video.isOpened():
-                logger.error("Failed to open video file")
                 return "Sorry, I couldn't process the reel. Please try again."
 
-            # Get video metadata
+            # Video processing parameters remain the same
+            fps = min(video.get(cv2.CAP_PROP_FPS), 30)
             total_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-            fps = video.get(cv2.CAP_PROP_FPS)
-            duration = total_frames / fps
+            max_frames_to_process = min(total_frames, 300)
+            frame_interval = int(fps * 2)
+            similarity_threshold = 0.80
+            clothing_area_threshold = 0.15
             
-            logger.info(f"Video stats - Duration: {duration:.2f}s, Frames: {total_frames}, FPS: {fps}")
-
-            # Smart frame sampling strategy
-            frames_to_analyze = []
-            previous_frame_gray = None
+            unique_frames = []
+            previous_frame = None
+            previous_clothing_boxes = None
             frame_count = 0
-            min_frame_difference = 0.3  # Threshold for considering frames different enough
-            max_frames = 8  # Maximum number of frames to analyze
+            max_unique_frames = 5
             
-            while frame_count < total_frames and len(frames_to_analyze) < max_frames:
+            while video.isOpened() and frame_count < max_frames_to_process and len(unique_frames) < max_unique_frames:
                 ret, frame = video.read()
                 if not ret:
                     break
-
-                # Sample frames based on video duration
-                if duration <= 15:  # Short video
-                    sample_interval = int(fps)  # Sample once per second
-                else:
-                    sample_interval = int(fps * 1.5)  # Sample every 1.5 seconds
-
-                if frame_count % sample_interval == 0:
-                    # Convert to grayscale for comparison
-                    current_frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
                     
-                    # Check if frame is different enough from previous frame
-                    should_process = True
-                    if previous_frame_gray is not None:
-                        similarity = ssim(previous_frame_gray, current_frame_gray)
-                        should_process = similarity < (1 - min_frame_difference)
-                        logger.info(f"Frame {frame_count} similarity with previous: {similarity:.3f}")
-
-                    if should_process:
-                        # Enhance frame quality
-                        enhanced_frame = frame.copy()
-                        # Basic image enhancement
-                        enhanced_frame = cv2.convertScaleAbs(enhanced_frame, alpha=1.1, beta=10)
+                if frame_count % frame_interval == 0:
+                    # Process frame for clothing detection
+                    processing_frame = resize_frame_with_aspect_ratio(frame, target_width=640)
+                    _, clothing_boxes = clothing_detector.process_frame(processing_frame)
+                    
+                    # Calculate clothing area ratio
+                    frame_area = processing_frame.shape[0] * processing_frame.shape[1]
+                    clothing_area = sum(w * h for _, _, w, h in clothing_boxes)
+                    clothing_area_ratio = clothing_area / frame_area
+                    
+                    if clothing_area_ratio >= clothing_area_threshold:
+                        gray_frame = cv2.cvtColor(processing_frame, cv2.COLOR_BGR2GRAY)
                         
-                        # Store frame information
-                        success, buffer = cv2.imencode('.jpg', enhanced_frame)
-                        if success:
-                            base64_image = base64.b64encode(buffer).decode('utf-8')
-                            frames_to_analyze.append({
-                                'base64_image': base64_image,
-                                'frame_number': frame_count,
-                                'timestamp': frame_count / fps
-                            })
-                            previous_frame_gray = current_frame_gray
+                        is_unique = True
+                        if previous_frame is not None:
+                            if previous_frame.shape != gray_frame.shape:
+                                gray_frame = cv2.resize(gray_frame, previous_frame.shape[::-1])
+                            frame_similarity = ssim(previous_frame, gray_frame)
+                            
+                            if previous_clothing_boxes:
+                                boxes_similar = compare_clothing_boxes(
+                                    previous_clothing_boxes, 
+                                    clothing_boxes,
+                                    threshold=0.7
+                                )
+                                is_unique = frame_similarity < similarity_threshold and not boxes_similar
+                            else:
+                                is_unique = frame_similarity < similarity_threshold
+                        
+                        if is_unique:
+                            # Store unique frames with image prefix
+                            success, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 95])
+                            if success:
+                                base64_image = f"data:image/jpeg;base64,{base64.b64encode(buffer).decode('utf-8')}"
+                                unique_frames.append(base64_image)
+                                previous_frame = gray_frame
+                                previous_clothing_boxes = clothing_boxes
                 
                 frame_count += 1
+            
+            video.release()
 
-            logger.info(f"Selected {len(frames_to_analyze)} frames for analysis")
-
-            # Process frames and store results
+            # Process frames and store in database
             all_responses = []
+            send_graph_api_reply(sender_id, "🎯 Target acquired! Processing your awesome content 🔄")
             
             # Database operations
-            with session_scope() as session:
-                # Handle phone number record
-                phone = session.query(PhoneNumber).filter_by(instagram_username=instagram_username).first()
+            Session = session_factory()
+            try:
+                # Get or create phone number record
+                phone = Session.query(PhoneNumber).filter_by(instagram_username=instagram_username).first()
                 if not phone:
                     phone = PhoneNumber(instagram_username=instagram_username)
-                    session.add(phone)
-                    session.flush()
+                    Session.add(phone)
+                    Session.commit()
 
-                # Store video content
-                video_content = open(temp_file_path, 'rb').read()
-                base64_video = f"data:video/mp4;base64,{base64.b64encode(video_content).decode('utf-8')}"
-                
+                # Create main outfit record with video data
                 outfit = Outfit(
                     phone_id=phone.id,
-                    image_data=base64_video,
+                    image_data=base64_video,  # Store video with prefix in image_data field
                     description="Reel content"
                 )
-                session.add(outfit)
-                session.flush()
+                Session.add(outfit)
+                Session.commit()
 
-                # Process each selected frame
-                send_graph_api_reply(sender_id, "🎯 Processing your fashion content! This might take a moment...")
-
-                for idx, frame_data in enumerate(frames_to_analyze, 1):
+                # Process unique frames
+                for idx, base64_image in enumerate(unique_frames):
                     try:
-                        # Process frame with OpenAI Vision API
+                        # Remove the prefix for OpenAI processing
+                        image_without_prefix = base64_image.split('base64,')[1]
+                        
                         clothing_items = process_response(
-                            base64_image=frame_data['base64_image'].split('data:image/jpeg;base64,')[1],
+                            image_without_prefix,
+                            None,
+                            "",
                             instagram_username=instagram_username,
                             video=True
                         )
                         
                         if hasattr(clothing_items, 'Purpose') and clothing_items.Purpose == 1:
-                            outfit_response = f"\nOutfit {idx} (at {frame_data['timestamp']:.1f}s):\n{clothing_items.Response}\nItems found:"
-                            
+                            outfit_response = f"\nOutfit {idx + 1}:\n{clothing_items.Response}\nItems found:"
                             for item in clothing_items.Article:
                                 outfit_response += f"\n- {item.Item}"
                                 new_item = Item(
@@ -972,39 +899,94 @@ def process_reels_with_clothing_detection(reel_url: str, instagram_username: str
                                     description=item.Item,
                                     search=item.Amazon_Search
                                 )
-                                session.add(new_item)
+                                Session.add(new_item)
                             
                             all_responses.append(outfit_response)
+                            Session.commit()
                             
                     except Exception as e:
-                        logger.error(f"Error processing frame {idx}", exc_info=True)
+                        print(f"Error processing frame {idx}: {str(e)}")
                         continue
 
-            # Prepare response
+            finally:
+                Session.close()
+
+            # Clean up
+            os.unlink(temp_file_path)
+            
+            # Send responses
             if all_responses:
                 final_reply = f"I found {len(all_responses)} different outfits in your reel:"
                 send_graph_api_reply(sender_id, final_reply)
-                for response in all_responses:
-                    send_graph_api_reply(sender_id, response)
+                for item in all_responses:
+                    send_graph_api_reply(sender_id, item)
                 send_graph_api_reply(sender_id, "You can view all outfits on the Wha7 app. Download from the App Store!")
                 return final_reply
             else:
-                return "I couldn't identify any distinct outfits in the reel. Please try again with clearer footage."
-
+                final_reply = "I couldn't identify any distinct outfits in the reel. Please try again with clearer footage."
+                send_graph_api_reply(sender_id, final_reply)
+                return final_reply
+            
         finally:
-            # Clean up resources
             if 'video' in locals():
                 video.release()
             if os.path.exists(temp_file_path):
                 try:
                     os.unlink(temp_file_path)
-                except Exception as e:
-                    logger.error(f"Failed to delete temporary file: {temp_file_path}", exc_info=True)
-
+                except:
+                    pass
+        
     except Exception as e:
-        logger.error("Error processing reel", exc_info=True)
+        print(f"Error processing reel: {str(e)}")
         return "Sorry, I encountered an error while processing your reel. Please try again."
 
+def compare_clothing_boxes(boxes1, boxes2, threshold=0.7):
+    """
+    Compare two sets of clothing bounding boxes using IoU (Intersection over Union)
+    
+    Args:
+        boxes1: First set of bounding boxes [(x1, y1, w1, h1), ...]
+        boxes2: Second set of bounding boxes [(x2, y2, w2, h2), ...]
+        threshold: IoU threshold for considering boxes as similar
+    
+    Returns:
+        bool: True if the sets of boxes are similar enough
+    """
+    if abs(len(boxes1) - len(boxes2)) > 1:
+        return False
+        
+    def calculate_iou(box1, box2):
+        # Convert from (x, y, w, h) to (x1, y1, x2, y2)
+        x1, y1, w1, h1 = box1
+        x2, y2, w2, h2 = box2
+        
+        # Calculate coordinates of intersection
+        xi1 = max(x1, x2)
+        yi1 = max(y1, y2)
+        xi2 = min(x1 + w1, x2 + w2)
+        yi2 = min(y1 + h1, y2 + h2)
+        
+        if xi2 <= xi1 or yi2 <= yi1:
+            return 0.0
+        
+        # Calculate areas
+        intersection_area = (xi2 - xi1) * (yi2 - yi1)
+        box1_area = w1 * h1
+        box2_area = w2 * h2
+        union_area = box1_area + box2_area - intersection_area
+        
+        return intersection_area / union_area if union_area > 0 else 0.0
+    
+    # Calculate IoU for each pair of boxes
+    similar_boxes = 0
+    for box1 in boxes1:
+        for box2 in boxes2:
+            if calculate_iou(box1, box2) >= threshold:
+                similar_boxes += 1
+                break
+    
+    # Consider boxes similar if most boxes have a match
+    return similar_boxes >= min(len(boxes1), len(boxes2)) * 0.7
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
