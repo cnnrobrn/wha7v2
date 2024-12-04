@@ -43,4 +43,3 @@ git+https://${GITHUB_TOKEN}@github.com/cnnrobrn/wha7-models.git@main
 # black==23.9.1          # For code formatting
 # flake8==6.1.0          # For linting
 # mypy==1.5.1            # For type checking
-
