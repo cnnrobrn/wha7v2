@@ -42,12 +42,6 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Constants
-MEMORY_THRESHOLD = 1024 * 1024 * 1024  # 1GB
-BATCH_SIZE = 2
-MAX_WORKERS = 3
-MAX_UNIQUE_FRAMES = 5
-
 # wha7_models imports
 from wha7_models import init_db, PhoneNumber, Outfit, Item, Link, ReferralCode, Referral
 
@@ -439,7 +433,7 @@ def analyze_text_with_openai(text=None, true_prompt=prompt,format=Outfits):
     except Exception as e:
         print(f"Error analyzing image with OpenAI: {e}")
         return None   
-def analyze_image_with_openai(base64_image=None,text=None,true_prompt=prompt,format=Outfits):
+def analyze_image_with_openai(base64_image,text="",true_prompt=prompt,format=Outfits):
     try:
         # Example of using OpenAI to generate a response about clothing items
         # Assuming OpenAI GPT-4 can analyze text data about images (would need further development for visual analysis)
@@ -475,7 +469,7 @@ def analyze_image_with_openai(base64_image=None,text=None,true_prompt=prompt,for
         print(f"Error analyzing image with OpenAI: {e}")
         return None
 
-def process_response(base64_image, from_number=None, text=None, prompt_text=prompt, format=Outfits, instagram_username=None, video=False):
+def process_response(base64_image, from_number=None, text="", prompt_text=prompt, format=Outfits, instagram_username=None, video=False):
     if base64_image:
         base64_image_data = f"data:image/jpeg;base64,{base64_image}"
         clothing_items = analyze_image_with_openai(base64_image_data, text, prompt_text, format)
