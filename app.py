@@ -24,7 +24,6 @@ import requests
 from skimage.metrics import structural_similarity as ssim
 import tempfile
 import os
-from EnhancedClothingDetector import EnhancedClothingDetector
 
 # wha7_models imports
 from wha7_models import init_db, PhoneNumber, Outfit, Item, Link, ReferralCode, Referral
@@ -452,12 +451,12 @@ def analyze_image_with_openai(base64_image=None,text=None,true_prompt=prompt,for
     except Exception as e:
         print(f"Error analyzing image with OpenAI: {e}")
         return None
-def process_response(base64_image, from_number, text, prompt_text=prompt, format=Outfits, instagram_username=None, video=False):
+def process_response(base64_image, from_number, text, prompt_text=prompt, format=Outfits, instagram_username=None):
     if base64_image:
         base64_image_data = f"data:image/jpeg;base64,{base64_image}"
         clothing_items = analyze_image_with_openai(base64_image_data, text, prompt_text, format)
         if format == Outfits:
-            database_commit(clothing_items, from_number, base64_image_data, instagram_username, video)
+            database_commit(clothing_items, from_number, base64_image_data, instagram_username)
     else:
         clothing_items = analyze_text_with_openai(text=text, true_prompt=prompt_text, format=format)      
     return clothing_items
@@ -489,7 +488,7 @@ def get_recommendation_id(item_description):
     else:
         # Handle error (e.g., log the error, return a default value)
         return "Error"
-def database_commit(clothing_items, from_number, base64_image_data=None, instagram_username=None,video=False):
+def database_commit(clothing_items, from_number, base64_image_data=None, instagram_username=None):
     with app.app_context():
         Session = session_factory()
         try:
@@ -519,11 +518,10 @@ def database_commit(clothing_items, from_number, base64_image_data=None, instagr
                     phone.phone_number = from_number
                     Session.commit()
 
-            if not video:
             # Create a new Outfit
-                outfit = Outfit(phone_id=phone.id, image_data=base64_image_data, description="Outfit from image")
-                Session.add(outfit)
-                Session.commit()
+            outfit = Outfit(phone_id=phone.id, image_data=base64_image_data, description="Outfit from image")
+            Session.add(outfit)
+            Session.commit()
                     
             if clothing_items.Article is not None:
                 for item in clothing_items.Article:
@@ -660,9 +658,8 @@ def handle_instagram_messages():
                         # Check if the media is a video/reel
                         if media_type in ['video', 'ig_reel']:
                             print("Processing video/reel content")
-                            send_graph_api_reply(sender_id,"🎬 Exciting reel spotted! Let's see what we've got...")
-
-                            reply = process_reels_with_clothing_detection(media_url, sender_username,sender_id)
+                            send_graph_api_reply(sender_id,"Reel recieved. Processing now. Please wait...")
+                            reply = process_reels(media_url, sender_username,sender_id)
                             print(f"11. Sending final reply for video: {reply}")
 
                         else:
@@ -673,10 +670,8 @@ def handle_instagram_messages():
                             
                             if media_response.status_code == 200:
                                 image_content = media_response.content
-                                send_graph_api_reply(sender_id,"📸 Capturing your moment...")
                                 base64_image = base64.b64encode(image_content).decode('utf-8')
-                                send_graph_api_reply(sender_id,"✨ Photo received! Working some magic ⚡")
-
+                                
                                 try:
                                     clothing_items = process_response(
                                         base64_image, 
@@ -685,8 +680,7 @@ def handle_instagram_messages():
                                         instagram_username=sender_username
                                     )
                                     print("10. Image processed successfully")
-                                    send_graph_api_reply(sender_id,"🎨 Almost ready to share your masterpiece! 🌟")
-
+                                    
                                     if hasattr(clothing_items, 'Purpose'):
                                         if clothing_items.Purpose == 1:
                                             reply = f"{clothing_items.Response} We found the following items:"
@@ -763,28 +757,16 @@ def resize_frame_with_aspect_ratio(frame, target_width=640):
     target_height = int(target_width / aspect_ratio)
     return cv2.resize(frame, (target_width, target_height))
 
-
-def process_reels_with_clothing_detection(reel_url, instagram_username, sender_id):
-    """
-    Process reels with clothing detection, storing the video in the image_data field with a prefix.
-    The prefix 'data:video/mp4;base64,' allows the content to be identified as video when retrieved.
-    """
+def process_reels(reel_url, instagram_username, sender_id):
     try:
-        # Initialize the clothing detector
-        clothing_detector = EnhancedClothingDetector()
-        
-        # Download the reel video
         response = requests.get(reel_url, stream=True, timeout=10)
         if response.status_code != 200:
             return "Sorry, I couldn't access the reel. Please try again."
-        
-        # Convert video to base64 with video prefix
-        video_content = response.content
-        base64_video = f"data:video/mp4;base64,{base64.b64encode(video_content).decode('utf-8')}"
             
-        # Save to temporary file for frame processing
         with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as temp_file:
-            temp_file.write(video_content)
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:
+                    temp_file.write(chunk)
             temp_file_path = temp_file.name
         
         try:
@@ -792,17 +774,14 @@ def process_reels_with_clothing_detection(reel_url, instagram_username, sender_i
             if not video.isOpened():
                 return "Sorry, I couldn't process the reel. Please try again."
 
-            # Video processing parameters remain the same
             fps = min(video.get(cv2.CAP_PROP_FPS), 30)
             total_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
             max_frames_to_process = min(total_frames, 300)
             frame_interval = int(fps * 2)
             similarity_threshold = 0.80
-            clothing_area_threshold = 0.15
             
             unique_frames = []
             previous_frame = None
-            previous_clothing_boxes = None
             frame_count = 0
             max_unique_frames = 5
             
@@ -812,120 +791,63 @@ def process_reels_with_clothing_detection(reel_url, instagram_username, sender_i
                     break
                     
                 if frame_count % frame_interval == 0:
-                    # Process frame for clothing detection
+                    # Resize for comparison while maintaining aspect ratio
                     processing_frame = resize_frame_with_aspect_ratio(frame, target_width=640)
-                    _, clothing_boxes = clothing_detector.process_frame(processing_frame)
+                    gray_frame = cv2.cvtColor(processing_frame, cv2.COLOR_BGR2GRAY)
                     
-                    # Calculate clothing area ratio
-                    frame_area = processing_frame.shape[0] * processing_frame.shape[1]
-                    clothing_area = sum(w * h for _, _, w, h in clothing_boxes)
-                    clothing_area_ratio = clothing_area / frame_area
+                    is_unique = True
+                    if previous_frame is not None:
+                        if previous_frame.shape != gray_frame.shape:
+                            gray_frame = cv2.resize(gray_frame, previous_frame.shape[::-1])
+                        similarity = ssim(previous_frame, gray_frame)
+                        is_unique = similarity < similarity_threshold
                     
-                    if clothing_area_ratio >= clothing_area_threshold:
-                        gray_frame = cv2.cvtColor(processing_frame, cv2.COLOR_BGR2GRAY)
-                        
-                        is_unique = True
-                        if previous_frame is not None:
-                            if previous_frame.shape != gray_frame.shape:
-                                gray_frame = cv2.resize(gray_frame, previous_frame.shape[::-1])
-                            frame_similarity = ssim(previous_frame, gray_frame)
-                            
-                            if previous_clothing_boxes:
-                                boxes_similar = compare_clothing_boxes(
-                                    previous_clothing_boxes, 
-                                    clothing_boxes,
-                                    threshold=0.7
-                                )
-                                is_unique = frame_similarity < similarity_threshold and not boxes_similar
-                            else:
-                                is_unique = frame_similarity < similarity_threshold
-                        
-                        if is_unique:
-                            # Store unique frames with image prefix
-                            success, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 95])
-                            if success:
-                                base64_image = f"data:image/jpeg;base64,{base64.b64encode(buffer).decode('utf-8')}"
-                                unique_frames.append(base64_image)
-                                previous_frame = gray_frame
-                                previous_clothing_boxes = clothing_boxes
+                    if is_unique:
+                        # Store original frame (not the resized version) in base64
+                        success, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 95])
+                        if success:
+                            base64_image = base64.b64encode(buffer).decode('utf-8')
+                            unique_frames.append(base64_image)
+                            previous_frame = gray_frame
                 
                 frame_count += 1
             
             video.release()
 
-            # Process frames and store in database
+            # Process frames with error handling for each
             all_responses = []
-            send_graph_api_reply(sender_id, "🎯 Target acquired! Processing your awesome content 🔄")
+            for idx, base64_image in enumerate(unique_frames):
+                try:
+                    clothing_items = process_response(
+                        base64_image,
+                        None,
+                        "",
+                        instagram_username=instagram_username
+                    )
+                    
+                    if hasattr(clothing_items, 'Purpose') and clothing_items.Purpose == 1:
+                        outfit_response = f"\nOutfit {idx + 1}:\n{clothing_items.Response}\nItems found:"
+                        for item in clothing_items.Article:
+                            outfit_response += f"\n- {item.Item}"
+                        all_responses.append(outfit_response)
+                except Exception as e:
+                    print(f"Error processing frame {idx}: {str(e)}")
+                    continue
             
-            # Database operations
-            Session = session_factory()
-            try:
-                # Get or create phone number record
-                phone = Session.query(PhoneNumber).filter_by(instagram_username=instagram_username).first()
-                if not phone:
-                    phone = PhoneNumber(instagram_username=instagram_username)
-                    Session.add(phone)
-                    Session.commit()
-
-                # Create main outfit record with video data
-                outfit = Outfit(
-                    phone_id=phone.id,
-                    image_data=base64_video,  # Store video with prefix in image_data field
-                    description="Reel content"
-                )
-                Session.add(outfit)
-                Session.commit()
-
-                # Process unique frames
-                for idx, base64_image in enumerate(unique_frames):
-                    try:
-                        # Remove the prefix for OpenAI processing
-                        image_without_prefix = base64_image.split('base64,')[1]
-                        
-                        clothing_items = process_response(
-                            image_without_prefix,
-                            None,
-                            "",
-                            instagram_username=instagram_username,
-                            video=True
-                        )
-                        
-                        if hasattr(clothing_items, 'Purpose') and clothing_items.Purpose == 1:
-                            outfit_response = f"\nOutfit {idx + 1}:\n{clothing_items.Response}\nItems found:"
-                            for item in clothing_items.Article:
-                                outfit_response += f"\n- {item.Item}"
-                                new_item = Item(
-                                    outfit_id=outfit.id,
-                                    description=item.Item,
-                                    search=item.Amazon_Search
-                                )
-                                Session.add(new_item)
-                            
-                            all_responses.append(outfit_response)
-                            Session.commit()
-                            
-                    except Exception as e:
-                        print(f"Error processing frame {idx}: {str(e)}")
-                        continue
-
-            finally:
-                Session.close()
-
             # Clean up
             os.unlink(temp_file_path)
             
-            # Send responses
             if all_responses:
                 final_reply = f"I found {len(all_responses)} different outfits in your reel:"
                 send_graph_api_reply(sender_id, final_reply)
                 for item in all_responses:
-                    send_graph_api_reply(sender_id, item)
+                    send_graph_api_reply(sender_id,item)
                 send_graph_api_reply(sender_id, "You can view all outfits on the Wha7 app. Download from the App Store!")
                 return final_reply
             else:
                 final_reply = "I couldn't identify any distinct outfits in the reel. Please try again with clearer footage."
                 send_graph_api_reply(sender_id, final_reply)
-                return final_reply
+            return final_reply
             
         finally:
             if 'video' in locals():
@@ -940,53 +862,6 @@ def process_reels_with_clothing_detection(reel_url, instagram_username, sender_i
         print(f"Error processing reel: {str(e)}")
         return "Sorry, I encountered an error while processing your reel. Please try again."
 
-def compare_clothing_boxes(boxes1, boxes2, threshold=0.7):
-    """
-    Compare two sets of clothing bounding boxes using IoU (Intersection over Union)
     
-    Args:
-        boxes1: First set of bounding boxes [(x1, y1, w1, h1), ...]
-        boxes2: Second set of bounding boxes [(x2, y2, w2, h2), ...]
-        threshold: IoU threshold for considering boxes as similar
-    
-    Returns:
-        bool: True if the sets of boxes are similar enough
-    """
-    if abs(len(boxes1) - len(boxes2)) > 1:
-        return False
-        
-    def calculate_iou(box1, box2):
-        # Convert from (x, y, w, h) to (x1, y1, x2, y2)
-        x1, y1, w1, h1 = box1
-        x2, y2, w2, h2 = box2
-        
-        # Calculate coordinates of intersection
-        xi1 = max(x1, x2)
-        yi1 = max(y1, y2)
-        xi2 = min(x1 + w1, x2 + w2)
-        yi2 = min(y1 + h1, y2 + h2)
-        
-        if xi2 <= xi1 or yi2 <= yi1:
-            return 0.0
-        
-        # Calculate areas
-        intersection_area = (xi2 - xi1) * (yi2 - yi1)
-        box1_area = w1 * h1
-        box2_area = w2 * h2
-        union_area = box1_area + box2_area - intersection_area
-        
-        return intersection_area / union_area if union_area > 0 else 0.0
-    
-    # Calculate IoU for each pair of boxes
-    similar_boxes = 0
-    for box1 in boxes1:
-        for box2 in boxes2:
-            if calculate_iou(box1, box2) >= threshold:
-                similar_boxes += 1
-                break
-    
-    # Consider boxes similar if most boxes have a match
-    return similar_boxes >= min(len(boxes1), len(boxes2)) * 0.7
-
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
