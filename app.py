@@ -1,8 +1,10 @@
 # Framework imports
-from flask import Flask, request, jsonify, redirect
-from flask_cors import CORS
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
+from fastapi import FastAPI, HTTPException, UploadFile, File, Request, BackgroundTasks
+from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.ext.declarative import declarative_base
 
 # Third-party imports
 from twilio.twiml.messaging_response import MessagingResponse
@@ -13,24 +15,31 @@ import json
 import base64
 import os
 import urllib.parse
-import psycopg2
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 import cv2
 import numpy as np
-from io import BytesIO
 from PIL import Image
-import requests
 from skimage.metrics import structural_similarity as ssim
 import tempfile
-import os
+import asyncio
+import aiohttp
 
-# wha7_models imports
-from wha7_models import init_db, PhoneNumber, Outfit, Item, Link, ReferralCode, Referral
+# wha7_models imports (updated for async)
+import wha7_models  # Assuming this module is updated for SQLAlchemy async
+from wha7_models import PhoneNumber, Outfit, Item  # Import necessary models
 
-# Create Flask app and db instance
-app = Flask(__name__)
-CORS(app)
+# Create FastAPI app
+app = FastAPI()
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 # Load environment variables
 load_dotenv()
@@ -44,44 +53,34 @@ INSTAGRAM_USERNAME = os.getenv('INSTAGRAM_USERNAME')
 INSTAGRAM_PASSWORD = os.getenv('INSTAGRAM_PASSWORD')
 INSTAGRAM_ACCESS_TOKEN = os.getenv('INSTAGRAM_ACCESS_TOKEN')
 INSTAGRAM_BUSINESS_ACCOUNT_ID = os.getenv('INSTAGRAM_BUSINESS_ACCOUNT_ID')
-WEBHOOK_VERIFY_TOKEN = os.getenv('WEBHOOK_VERIFY_TOKEN')  # Add this to your .env file
+WEBHOOK_VERIFY_TOKEN = os.getenv('WEBHOOK_VERIFY_TOKEN')
 GRAPH_API_URL = "https://graph.instagram.com/v12.0"
 
+# Configure SQLAlchemy for async
+DATABASE_URL_ASYNC = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://")
+engine_async = create_async_engine(DATABASE_URL_ASYNC)
+async_session_factory = sessionmaker(engine_async, expire_on_commit=False, class_=AsyncSession)
+Base = declarative_base()
 
-# Configure SQLAlchemy
-app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# Dependency to get async database session
+async def get_async_db():
+    async with async_session_factory() as session:
+        yield session
 
-# Initialize SQLAlchemy
-db = SQLAlchemy()
-db.init_app(app)
-
-# Initialize migrations - add this line
-migrate = Migrate(app, db)
-
-# Initialize database engine from wha7_models
-engine, session_factory = init_db()
-
-# Create all tables and initialize migrations
-with app.app_context():
-    db.create_all()
-    migrate = Migrate(app, db)
-    
 # Your pydantic models remain the same
-class clothing(BaseModel):
+class Clothing(BaseModel):
     Item: str
     Amazon_Search: str
 
 class Recommendations(BaseModel):
     Response: str
-    Recommendations: list[clothing]
+    Recommendations: list[Clothing]
 
 class Outfits(BaseModel):
     Outfits: str
     Response: str
     Purpose: int
-    Article: list[clothing]
-
+    Article: list[Clothing]
 
 EBAY_ENDPOINT = "https://api.ebay.com/buy/browse/v1/item_summary/search?q="
 
@@ -316,70 +315,81 @@ Output the Recommendations object as a JSON string, ensuring all entries follow 
 client = OpenAI()
 
 
-@app.route("/sms", methods=['POST'])
-def sms_reply():
-    # Extract incoming message information
-    db.create_all()
-    from_number = request.form.get('From')
-    media_url = request.form.get('MediaUrl0')  # This will be the first image URL
-    text = request.form.get('Body')
+@app.post("/sms", response_class=HTMLResponse)  # Changed to HTMLResponse for Twilio
+async def sms_reply(request: Request):
+    """
+    Handles incoming SMS messages with images, processes them, and sends a reply.
+    """
+    form = await request.form()
+    from_number = form.get('From')
+    media_url = form.get('MediaUrl0')
+    text = form.get('Body')
 
-    if media_url:        
-        response = requests.get(media_url, auth=(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN))
-        if response.status_code == 200:
+    if media_url:
+        try:
+            response = requests.get(media_url, auth=(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN))
+            response.raise_for_status()  # Raise an exception for bad status codes
             image_content = response.content
             base64_image = base64.b64encode(image_content).decode('utf-8')
-            clothing_items = process_response(base64_image,from_number,text)
+            clothing_items = await process_response(base64_image, from_number, text)
 
             # Construct response message
-            if(clothing_items.Purpose == 1):
-                resp = MessagingResponse()
+            resp = MessagingResponse()
+            if clothing_items.Purpose == 1:
                 resp.message(f"{clothing_items.Response} You can view the outfit on the Wha7 app. Join the waitlist at https://www.wha7.com/f/5f804b34-9f3a-4bd6-a9e5-bf21e2a9018d")
-                return str(resp)
-            elif(clothing_items.Purpose == 2):
-                resp = MessagingResponse()
+            elif clothing_items.Purpose == 2:
                 resp.message(f"{clothing_items.Response}")
-                return str(resp)
-            elif(clothing_items.Purpose == 3):
-                resp = MessagingResponse()
+            elif clothing_items.Purpose == 3:
                 resp.message("I'm sorry, I'm not sure how to respond to that. Can you retry?")
-                return str(resp)
-        else:
-            return "Error: Unable to fetch the image."
+            return str(resp)
+
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching image: {e}")
+            return HTTPException(status_code=500, detail="Error fetching image")
+
     else:
         resp = MessagingResponse()
         resp.message("Please send a screenshot of a TikTok or Reel. You can access outfits you've already shared on our app or after signing up via https://www.wha7.com/f/5f804b34-9f3a-4bd6-a9e5-bf21e2a9018d")
         return str(resp)
-
-
-@app.route("/ios/consultant", methods=['POST'])
-def ios_consultant():
-    data = request.get_json()
+        
+@app.post("/ios/consultant")
+async def ios_consultant(request: Request):
+    """
+    Handles requests from iOS app for fashion recommendations.
+    """
+    data = await request.json()
     image_content = data.get('image_content')
     text = data.get('text')
     from_number = format_phone_number(data.get('from_number'))
-    Clothing_Items = process_response(image_content, from_number, text, prompt_text=recommendation_prompt, format=Recommendations)
-    
-    return jsonify({
-        "response": Clothing_Items.Response,
-        "recommendations": [
-            {
-                "Item": article.Item,
-                "Amazon_Search": article.Amazon_Search,
-                "Recommendation_ID": get_recommendation_id(article.Item)
-            } 
-            for article in (Clothing_Items.Recommendations or [])
-        ]
-    })
+    clothing_items = await process_response(
+        image_content, from_number, text, prompt_text=recommendation_prompt, format=Recommendations
+    )
+    return JSONResponse(
+        content={
+            "response": clothing_items.Response,
+            "recommendations": [
+                {
+                    "Item": article.Item,
+                    "Amazon_Search": article.Amazon_Search,
+                    "Recommendation_ID": await get_recommendation_id(article.Item),
+                }
+                for article in (clothing_items.Recommendations or [])
+            ],
+        }
+    )
 
-@app.route("/ios", methods=['POST'])
-def ios_image():
-    # Get data from request body instead of args
-    data = request.get_json()  # For JSON data
+
+@app.post("/ios")
+async def ios_image(request: Request, background_tasks: BackgroundTasks):
+    """
+    Handles image uploads from iOS app and processes them in the background.
+    """
+    data = await request.json()
     image_content = data.get('image_content')
     from_number = format_phone_number(data.get('from_number'))
-    process_response(image_content, from_number,text=None)
-    return "success"  # Return a response
+    # Run database commit in the background
+    background_tasks.add_task(process_response, image_content, from_number, text=None) 
+    return JSONResponse(content={"status": "success"})
 
 def format_phone_number(phone_number):
     phone_number = phone_number.strip().replace("-", "").replace("(", "").replace(")", "").replace(" ", "").replace("+1", "")
@@ -387,62 +397,57 @@ def format_phone_number(phone_number):
         phone_number = "+1" + phone_number
     return phone_number
 
-def analyze_text_with_openai(text=None, true_prompt=prompt,format=Outfits):
+async def analyze_text_with_openai(text=None, true_prompt=prompt, format=Outfits):
+    """
+    Analyzes text using OpenAI and returns a structured response.
+    """
     try:
-        # Example of using OpenAI to generate a response about clothing items
-        # Assuming OpenAI GPT-4 can analyze text data about images (would need further development for visual analysis)
-        response = client.beta.chat.completions.parse(
+        response = await client.beta.chat.completions.acreate(  # Use acreate for async
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "You are an expert at structured data extraction. You will be given a photo and should convert it into the given structure."},
+                {
+                    "role": "system",
+                    "content": "You are an expert at structured data extraction. You will be given a photo and should convert it into the given structure.",
+                },
                 {
                     "role": "user",
                     "content": [
-                        {
-                            "type": "text",
-                            "text": true_prompt,
-                        },
-                        {
-                            "type": "text",
-                            "text": f"The user sent the following text: {text}",
-                        },
+                        {"type": "text", "text": true_prompt},
+                        {"type": "text", "text": f"The user sent the following text: {text}"},
                     ],
-                }
+                },
             ],
             response_format=format,
             max_tokens=5000,
         )
         return response.choices[0].message.parsed
     except Exception as e:
-        print(f"Error analyzing image with OpenAI: {e}")
-        return None   
-def analyze_image_with_openai(base64_image=None,text=None,true_prompt=prompt,format=Outfits):
+        print(f"Error analyzing text with OpenAI: {e}")
+        return None
+    
+async def analyze_image_with_openai(base64_image=None, text=None, true_prompt=prompt, format=Outfits):
+    """
+    Analyzes an image using OpenAI and returns a structured response.
+    """
     try:
-        # Example of using OpenAI to generate a response about clothing items
-        # Assuming OpenAI GPT-4 can analyze text data about images (would need further development for visual analysis)
-        response = client.beta.chat.completions.parse(
+        response = await client.beta.chat.completions.acreate(  # Use acreate for async
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "You are an expert at structured data extraction. You will be given a photo and should convert it into the given structure."},
+                {
+                    "role": "system",
+                    "content": "You are an expert at structured data extraction. You will be given a photo and should convert it into the given structure.",
+                },
                 {
                     "role": "user",
                     "content": [
-                        {
-                            "type": "text",
-                            "text": true_prompt,
-                        },
-                        {
-                            "type": "text",
-                            "text": f"The user sent the following text: {text}",
-                        },
+                        {"type": "text", "text": true_prompt},
+                        {"type": "text", "text": f"The user sent the following text: {text}"},
                         {
                             "type": "image_url",
-                            "image_url": {
-                                "url": base64_image
-                            },
+                            "image_url": {"url": base64_image},
                         },
                     ],
-                }
+                },
             ],
             response_format=format,
             max_tokens=5000,
@@ -451,14 +456,18 @@ def analyze_image_with_openai(base64_image=None,text=None,true_prompt=prompt,for
     except Exception as e:
         print(f"Error analyzing image with OpenAI: {e}")
         return None
-def process_response(base64_image, from_number, text, prompt_text=prompt, format=Outfits, instagram_username=None):
+
+async def process_response(base64_image, from_number, text, prompt_text=prompt, format=Outfits, instagram_username=None):
+    """
+    Processes image or text data, analyzes it with OpenAI, and optionally saves to the database.
+    """
     if base64_image:
         base64_image_data = f"data:image/jpeg;base64,{base64_image}"
-        clothing_items = analyze_image_with_openai(base64_image_data, text, prompt_text, format)
+        clothing_items = await analyze_image_with_openai(base64_image_data, text, prompt_text, format)
         if format == Outfits:
-            database_commit(clothing_items, from_number, base64_image_data, instagram_username)
+            await database_commit(clothing_items, from_number, base64_image_data, instagram_username)
     else:
-        clothing_items = analyze_text_with_openai(text=text, true_prompt=prompt_text, format=format)      
+        clothing_items = await analyze_text_with_openai(text=text, true_prompt=prompt_text, format=format)
     return clothing_items
     
 def shorten_url(long_url):
@@ -488,57 +497,66 @@ def get_recommendation_id(item_description):
     else:
         # Handle error (e.g., log the error, return a default value)
         return "Error"
-def database_commit(clothing_items, from_number, base64_image_data=None, instagram_username=None):
-    with app.app_context():
-        Session = session_factory()
+async def database_commit(clothing_items, from_number, base64_image_data=None, instagram_username=None):
+    """
+    Saves the processed outfit and item information to the database asynchronously.
+    """
+    async with async_session_factory() as session:
         try:
-            # First check if there's an existing record with this Instagram username
             phone = None
             if instagram_username:
-                phone = Session.query(PhoneNumber).filter_by(instagram_username=instagram_username).first()
-            
-            # If no record found by Instagram username, try finding by phone number
+                phone = await session.execute(
+                    select(PhoneNumber).where(PhoneNumber.instagram_username == instagram_username)
+                )
+                phone = phone.scalars().first()
+
             if not phone and from_number:
-                phone = Session.query(PhoneNumber).filter_by(phone_number=from_number).first()
-            
-            # If still no record found, create a new one
+                phone = await session.execute(
+                    select(PhoneNumber).where(PhoneNumber.phone_number == from_number)
+                )
+                phone = phone.scalars().first()
+
             if not phone:
                 phone = PhoneNumber(
                     phone_number=from_number,
                     instagram_username=instagram_username
                 )
-                Session.add(phone)
-                Session.commit()
+                session.add(phone)
+                await session.commit()
             else:
-                # Update existing record if needed
                 if instagram_username and not phone.instagram_username:
                     phone.instagram_username = instagram_username
-                    Session.commit()
+                    await session.commit()
                 elif from_number and not phone.phone_number:
                     phone.phone_number = from_number
-                    Session.commit()
+                    await session.commit()
 
-            # Create a new Outfit
             outfit = Outfit(phone_id=phone.id, image_data=base64_image_data, description="Outfit from image")
-            Session.add(outfit)
-            Session.commit()
-                    
+            session.add(outfit)
+            await session.commit()
+
             if clothing_items.Article is not None:
                 for item in clothing_items.Article:
                     new_item = Item(
-                        outfit_id=outfit.id, 
-                        description=item.Item, 
-                        search=item.Amazon_Search, 
+                        outfit_id=outfit.id,
+                        description=item.Item,
+                        search=item.Amazon_Search,
                         processed_at=None
                     )
-                    Session.add(new_item)
-                    Session.commit()
+                    session.add(new_item)
+                    await session.commit()
             else:
                 print("No items found in clothing_items.Article")
-        finally:
-            Session.close()
 
-def get_unread_messages():
+        except Exception as e:
+            print(f"Error committing to database: {e}")
+            raise HTTPException(status_code=500, detail="Error saving data")
+
+
+# --- Async versions of Instagram functions ---
+
+
+async def get_unread_messages():
     """Fetch unread direct messages"""
     try:
         url = f"https://graph.facebook.com/v18.0/{INSTAGRAM_BUSINESS_ACCOUNT_ID}/messages"
@@ -546,14 +564,14 @@ def get_unread_messages():
             'access_token': INSTAGRAM_ACCESS_TOKEN,
             'fields': 'message,from,attachments'
         }
-        response = requests.get(url, params=params)
+        response = requests.get(url, params=params)  # This remains synchronous for now
         return response.json().get('data', [])
     except Exception as e:
         print(f"Error fetching messages: {e}")
         return []
 
 
-def send_instagram_reply(user_id, message):
+async def send_instagram_reply(user_id, message):
     """Send reply to Instagram user"""
     try:
         url = f"https://graph.facebook.com/v18.0/{INSTAGRAM_BUSINESS_ACCOUNT_ID}/messages"
@@ -562,12 +580,12 @@ def send_instagram_reply(user_id, message):
             'message': {'text': message},
             'access_token': INSTAGRAM_ACCESS_TOKEN
         }
-        response = requests.post(url, json=data)
+        response = requests.post(url, json=data)  # This remains synchronous for now
         return response.json()
     except Exception as e:
         print(f"Error sending reply: {e}")
         return None
-
+        
 @app.route("/instagram_webhook", methods=['GET'])
 def verify_webhook():
     """Handle the initial webhook verification from Instagram"""
@@ -594,32 +612,33 @@ def verify_webhook():
     return jsonify({'error': 'Invalid verification request'}), 400
 
 @app.route("/instagram_webhook", methods=['POST'])
-def handle_instagram_messages():
+@app.post("/instagram_webhook")  # Changed to FastAPI decorator
+async def handle_instagram_messages(request: Request):  # Added async def
     """Handle incoming Instagram messages webhook"""
     try:
-        webhook_data = request.json
+        webhook_data = await request.json()  # Use await for async request parsing
         print("1. Webhook received")
         print(f"Received webhook data: {json.dumps(webhook_data, indent=2)}")
 
         if webhook_data.get('object') == 'instagram' and webhook_data.get('entry'):
             print("2. Valid Instagram webhook")
-            
+
             for entry in webhook_data['entry']:
                 print("3. Processing entry")
-                
+
                 messaging_list = entry.get('messaging', [])
                 if not messaging_list:
                     print("No messaging field found in entry")
                     continue
-                    
+
                 for messaging in messaging_list:
                     print("4. Processing messaging item")
-                        
+
                     # Extract sender ID
                     sender_id = messaging.get('sender', {}).get('id')
                     if sender_id:
                         # Fetch the username using the sender ID
-                        sender_username = get_username(sender_id)
+                        sender_username = get_username(sender_id)  # This function needs to be async
                         if sender_username:
                             print(f"Sender ID: {sender_id}, Username: {sender_username}")
                         else:
@@ -638,7 +657,7 @@ def handle_instagram_messages():
                     attachments = message.get('attachments', [])
                     if not attachments:
                         print("No attachments found")
-                        reply = send_graph_api_reply(sender_id, "Please send a screenshot of a TikTok or Reel. You can access outfits you've already shared on our app or after signing up via https://www.wha7.com/f/5f804b34-9f3a-4bd6-a9e5-bf21e2a9018d")
+                        reply = await send_graph_api_reply(sender_id, "Please send a screenshot of a TikTok or Reel. You can access outfits you've already shared on our app or after signing up via https://www.wha7.com/f/5f804b34-9f3a-4bd6-a9e5-bf21e2a9018d")  # Use await here
                         print(f"Default message response: {reply}")
                         continue
 
@@ -646,41 +665,41 @@ def handle_instagram_messages():
                     attachment = attachments[0]
                     media_type = attachment.get('type', '')
                     media_url = attachment.get('payload', {}).get('url')
-                    
+
                     if not media_url:
                         print("No media URL found in attachment")
                         continue
-                    
+
                     print(f"8. Processing media URL: {media_url}")
                     print(f"Media type: {media_type}")
-                    
+
                     try:
                         # Check if the media is a video/reel
                         if media_type in ['video', 'ig_reel']:
                             print("Processing video/reel content")
-                            send_graph_api_reply(sender_id,"Reel recieved. Processing now. Please wait...")
-                            reply = process_reels(media_url, sender_username,sender_id)
+                            await send_graph_api_reply(sender_id, "Reel received. Processing now. Please wait...")  # Use await here
+                            reply = await process_reels(media_url, sender_username, sender_id)  # Use await here
                             print(f"11. Sending final reply for video: {reply}")
 
                         else:
                             # Handle image processing as before
-                            media_response = requests.get(media_url)
+                            media_response = requests.get(media_url)  # This should ideally be async
                             print(f"9. Media fetch status: {media_response.status_code}")
-                            send_graph_api_reply(sender_id,"Post recieved. Processing now. Please wait...")
-                            
+                            await send_graph_api_reply(sender_id, "Post received. Processing now. Please wait...")  # Use await here
+
                             if media_response.status_code == 200:
                                 image_content = media_response.content
                                 base64_image = base64.b64encode(image_content).decode('utf-8')
-                                
+
                                 try:
-                                    clothing_items = process_response(
-                                        base64_image, 
-                                        None, 
-                                        "", 
+                                    clothing_items = await process_response(  # Use await here
+                                        base64_image,
+                                        None,
+                                        "",
                                         instagram_username=sender_username
                                     )
                                     print("10. Image processed successfully")
-                                    
+
                                     if hasattr(clothing_items, 'Purpose'):
                                         if clothing_items.Purpose == 1:
                                             reply = f"{clothing_items.Response} We found the following items:"
@@ -691,60 +710,59 @@ def handle_instagram_messages():
                                             reply = clothing_items.Response
                                         else:
                                             reply = "I'm sorry, I'm not sure how to respond to that. Can you retry?"
-                                        
+
                                         print(f"11. Sending final reply: {reply}")
-                                        response = send_graph_api_reply(sender_id, reply)
+                                        response = await send_graph_api_reply(sender_id, reply)  # Use await here
                                         print(f"12. Final response: {response}")
                                 except Exception as e:
                                     print(f"Error in processing response: {e}")
-                                    send_graph_api_reply(sender_id, "Sorry, I had trouble processing your image. Please try again.")
+                                    await send_graph_api_reply(sender_id, "Sorry, I had trouble processing your image. Please try again.")  # Use await here
                             else:
                                 print(f"Media fetch failed with status {media_response.status_code}")
-                                send_graph_api_reply(sender_id, "Sorry, I couldn't access your image. Please try sending it again.")
+                                await send_graph_api_reply(sender_id, "Sorry, I couldn't access your image. Please try sending it again.")  # Use await here
                     except Exception as e:
                         print(f"Error processing media: {e}")
-                        send_graph_api_reply(sender_id, "Sorry, there was an error processing your media. Please try again.")
+                        await send_graph_api_reply(sender_id, "Sorry, there was an error processing your media. Please try again.")  # Use await here
 
-        return jsonify({'status': 'success'}), 200
-    
+        return JSONResponse(content={'status': 'success'}, status_code=200)  # Changed to FastAPI response
+
     except Exception as e:
         print(f"Error in webhook handler: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        return JSONResponse(content={'error': str(e)}, status_code=500)  # Changed to FastAPI response
 
-def send_graph_api_reply(user_id, message):
-    """Send reply using Instagram Graph API"""
-    try:
-        url = "https://graph.instagram.com/v12.0/me/messages"
-        headers = {
-            'Authorization': f'Bearer {INSTAGRAM_ACCESS_TOKEN}'
-        }
-        data = {
-            'recipient': {'id': user_id},
-            'message': {'text': message}
-        }
-        print(f"Sending message to {user_id}: {message}")
-        response = requests.post(url, headers=headers, json=data)
-        response_json = response.json()
-        print(f"Instagram API response: {response_json}")
-        return response_json
-    except Exception as e:
-        print(f"Error sending message: {str(e)}")
-        raise
+async def send_graph_api_reply(user_id, message):
+    """Send reply using Instagram Graph API asynchronously."""
+    url = "https://graph.instagram.com/v12.0/me/messages"
+    headers = {
+        'Authorization': f'Bearer {INSTAGRAM_ACCESS_TOKEN}'
+    }
+    data = {
+        'recipient': {'id': user_id},
+        'message': {'text': message}
+    }
+    print(f"Sending message to {user_id}: {message}")
+    async with aiohttp.ClientSession() as session:  # Use aiohttp for async request
+        async with session.post(url, headers=headers, json=data) as response:
+            response_json = await response.json()  # Asynchronously get JSON response
+            print(f"Instagram API response: {response_json}")
+            return response_json
 
-def get_username(sender_id):
-    """Fetch the username associated with the sender ID."""
+
+async def get_username(sender_id):
+    """Fetch the username associated with the sender ID asynchronously."""
     url = f"{GRAPH_API_URL}/{sender_id}"
     params = {
         "fields": "username",
         "access_token": INSTAGRAM_ACCESS_TOKEN
     }
-    response = requests.get(url, params=params)
-    if response.status_code == 200:
-        data = response.json()
-        return data.get("username")
-    else:
-        print(f"Failed to fetch username for sender_id {sender_id}. Error: {response.text}")
-        return None
+    async with aiohttp.ClientSession() as session:  # Use aiohttp for async request
+        async with session.get(url, params=params) as response:
+            if response.status == 200:
+                data = await response.json()  # Asynchronously get JSON response
+                return data.get("username")
+            else:
+                print(f"Failed to fetch username for sender_id {sender_id}. Error: {response.text}")
+                return None
 
 
 
@@ -757,18 +775,19 @@ def resize_frame_with_aspect_ratio(frame, target_width=640):
     target_height = int(target_width / aspect_ratio)
     return cv2.resize(frame, (target_width, target_height))
 
-def process_reels(reel_url, instagram_username, sender_id):
+async def process_reels(reel_url, instagram_username, sender_id):
     try:
-        response = requests.get(reel_url, stream=True, timeout=10)
-        if response.status_code != 200:
-            return "Sorry, I couldn't access the reel. Please try again."
-            
-        with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as temp_file:
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
-                    temp_file.write(chunk)
-            temp_file_path = temp_file.name
-        
+        async with aiohttp.ClientSession() as session:
+            async with session.get(reel_url, timeout=10) as response:
+                if response.status != 200:
+                    return "Sorry, I couldn't access the reel. Please try again."
+
+                with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as temp_file:
+                    async for chunk in response.content.iter_chunked(8192):
+                        if chunk:
+                            temp_file.write(chunk)
+                    temp_file_path = temp_file.name
+
         try:
             video = cv2.VideoCapture(temp_file_path)
             if not video.isOpened():
@@ -779,29 +798,29 @@ def process_reels(reel_url, instagram_username, sender_id):
             max_frames_to_process = min(total_frames, 300)
             frame_interval = int(fps * 2)
             similarity_threshold = 0.80
-            
+
             unique_frames = []
             previous_frame = None
             frame_count = 0
             max_unique_frames = 5
-            
+
             while video.isOpened() and frame_count < max_frames_to_process and len(unique_frames) < max_unique_frames:
                 ret, frame = video.read()
                 if not ret:
                     break
-                    
+
                 if frame_count % frame_interval == 0:
                     # Resize for comparison while maintaining aspect ratio
                     processing_frame = resize_frame_with_aspect_ratio(frame, target_width=640)
                     gray_frame = cv2.cvtColor(processing_frame, cv2.COLOR_BGR2GRAY)
-                    
+
                     is_unique = True
                     if previous_frame is not None:
                         if previous_frame.shape != gray_frame.shape:
                             gray_frame = cv2.resize(gray_frame, previous_frame.shape[::-1])
                         similarity = ssim(previous_frame, gray_frame)
                         is_unique = similarity < similarity_threshold
-                    
+
                     if is_unique:
                         # Store original frame (not the resized version) in base64
                         success, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 95])
@@ -809,22 +828,22 @@ def process_reels(reel_url, instagram_username, sender_id):
                             base64_image = base64.b64encode(buffer).decode('utf-8')
                             unique_frames.append(base64_image)
                             previous_frame = gray_frame
-                
+
                 frame_count += 1
-            
+
             video.release()
 
             # Process frames with error handling for each
             all_responses = []
             for idx, base64_image in enumerate(unique_frames):
                 try:
-                    clothing_items = process_response(
+                    clothing_items = await process_response(
                         base64_image,
                         None,
                         "",
                         instagram_username=instagram_username
                     )
-                    
+
                     if hasattr(clothing_items, 'Purpose') and clothing_items.Purpose == 1:
                         outfit_response = f"\nOutfit {idx + 1}:\n{clothing_items.Response}\nItems found:"
                         for item in clothing_items.Article:
@@ -833,22 +852,22 @@ def process_reels(reel_url, instagram_username, sender_id):
                 except Exception as e:
                     print(f"Error processing frame {idx}: {str(e)}")
                     continue
-            
+
             # Clean up
             os.unlink(temp_file_path)
-            
+
             if all_responses:
                 final_reply = f"I found {len(all_responses)} different outfits in your reel:"
-                send_graph_api_reply(sender_id, final_reply)
+                await send_graph_api_reply(sender_id, final_reply)  # Add await here
                 for item in all_responses:
-                    send_graph_api_reply(sender_id,item)
-                send_graph_api_reply(sender_id, "You can view all outfits on the Wha7 app. Download from the App Store!")
+                    await send_graph_api_reply(sender_id, item)  # Add await here
+                await send_graph_api_reply(sender_id, "You can view all outfits on the Wha7 app. Download from the App Store!")  # Add await here
                 return final_reply
             else:
                 final_reply = "I couldn't identify any distinct outfits in the reel. Please try again with clearer footage."
-                send_graph_api_reply(sender_id, final_reply)
+                await send_graph_api_reply(sender_id, final_reply)  # Add await here
             return final_reply
-            
+
         finally:
             if 'video' in locals():
                 video.release()
@@ -857,7 +876,7 @@ def process_reels(reel_url, instagram_username, sender_id):
                     os.unlink(temp_file_path)
                 except:
                     pass
-        
+
     except Exception as e:
         print(f"Error processing reel: {str(e)}")
         return "Sorry, I encountered an error while processing your reel. Please try again."
