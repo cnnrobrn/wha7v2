@@ -1,3 +1,4 @@
+# Framework imports
 from flask import Flask, request, jsonify, redirect
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
@@ -486,7 +487,7 @@ def database_commit(clothing_items, from_number, base64_image_data=None, instagr
             outfit = Outfit(phone_id=phone.id, image_data=base64_image_data, description="Outfit from image")
             Session.add(outfit)
             Session.commit()
-
+                    
             if clothing_items.Article is not None:
                 for item in clothing_items.Article:
                     new_item = Item(
@@ -622,8 +623,8 @@ def handle_instagram_messages():
                         # Check if the media is a video/reel
                         if media_type in ['video', 'ig_reel']:
                             print("Processing video/reel content")
-                            send_graph_api_reply(sender_id,"Reel recieved. Processing now. Please wait...")
                             send_graph_api_reply(sender_id,"🎬 Exciting reel spotted! Let's see what we've got...")
+
                             reply = process_reels(media_url, sender_username,sender_id)
                             print(f"11. Sending final reply for video: {reply}")
 
@@ -637,8 +638,8 @@ def handle_instagram_messages():
                                 image_content = media_response.content
                                 send_graph_api_reply(sender_id,"📸 Capturing your moment...")
                                 base64_image = base64.b64encode(image_content).decode('utf-8')
-                                
                                 send_graph_api_reply(sender_id,"✨ Photo received! Working some magic ⚡")
+
                                 try:
                                     clothing_items = process_response(
                                         base64_image, 
@@ -647,8 +648,8 @@ def handle_instagram_messages():
                                         instagram_username=sender_username
                                     )
                                     print("10. Image processed successfully")
-                                    
                                     send_graph_api_reply(sender_id,"🎨 Almost ready to share your masterpiece! 🌟")
+
                                     if hasattr(clothing_items, 'Purpose'):
                                         if clothing_items.Purpose == 1:
                                             reply = f"{clothing_items.Response} We found the following items:"
@@ -736,7 +737,7 @@ def process_reels(reel_url, instagram_username, sender_id):
                 if chunk:
                     temp_file.write(chunk)
             temp_file_path = temp_file.name
-
+        
         try:
             video = cv2.VideoCapture(temp_file_path)
             if not video.isOpened():
@@ -781,7 +782,6 @@ def process_reels(reel_url, instagram_username, sender_id):
                 frame_count += 1
 
             video.release()
-
             # Process frames with error handling for each
             all_responses = []
             send_graph_api_reply(sender_id,"🎯 Target acquired! Processing your awesome content 🔄")
@@ -805,7 +805,6 @@ def process_reels(reel_url, instagram_username, sender_id):
 
             # Clean up
             os.unlink(temp_file_path)
-            
             send_graph_api_reply(sender_id,"⚡ Almost there! (Beta feature - might see some déjà vu content! 😉)")
             if all_responses:
                 final_reply = f"I found {len(all_responses)} different outfits in your reel:"
@@ -834,3 +833,4 @@ def process_reels(reel_url, instagram_username, sender_id):
 
 
 if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)
