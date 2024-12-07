@@ -746,18 +746,24 @@ def resize_frame_with_aspect_ratio(frame, target_width=640):
 
 def process_reels(reel_url, instagram_username, sender_id):
     try:
+        # Make a single request for the video
         response = requests.get(reel_url, stream=True, timeout=10)
         if response.status_code != 200:
             return "Sorry, I couldn't access the reel. Please try again."
 
-        with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as temp_file:
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
-                    temp_file.write(chunk)
-            temp_file_path = temp_file.name
         try:
+            # Read the content once and store it
             video_content = response.content
+            
+            # Create base64 string from the content
             base64_video = f"data:video/mp4;base64,{base64.b64encode(video_content).decode('utf-8')}"
+            
+            # Write to temporary file
+            with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as temp_file:
+                temp_file.write(video_content)
+                temp_file_path = temp_file.name
+            
+            # Process the video
             video = cv2.VideoCapture(temp_file_path)
             if not video.isOpened():
                 return "Sorry, I couldn't process the reel. Please try again."
