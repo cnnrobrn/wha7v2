@@ -5,7 +5,7 @@ gunicorn==21.2.0
 # Database Connectors and ORM Support
 psycopg2-binary==2.9.9  # Binary version for easier deployment
 asyncpg==0.28.0         # Async database support
-sqlalchemy==2.0.21      # SQL toolkit and ORM
+sqlalchemy>=1.4.42,<1.5  # SQL toolkit and ORM (changed to a range)
 databases==0.7.0        # Async database support for SQLAlchemy
 
 # API Integrations and Networking
