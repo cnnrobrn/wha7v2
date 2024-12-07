@@ -27,8 +27,6 @@ import asyncio
 import aiohttp
 
 # wha7_models imports (updated for async)
-import wha7_models  # Assuming this module is updated for SQLAlchemy async
-from wha7_models import PhoneNumber, Outfit, Item  # Import necessary models
 
 # Create FastAPI app
 app = FastAPI()
