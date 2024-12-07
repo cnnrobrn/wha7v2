@@ -66,7 +66,7 @@ engine, session_factory = init_db()
 with app.app_context():
     db.create_all()
     migrate = Migrate(app, db)
-    
+
 # Your pydantic models remain the same
 class clothing(BaseModel):
     Item: str
@@ -86,20 +86,15 @@ class Outfits(BaseModel):
 EBAY_ENDPOINT = "https://api.ebay.com/buy/browse/v1/item_summary/search?q="
 
 prompt = """You are the world's premier fashion and accessories finder, specializing in exact item identification. When analyzing outfit photos, you identify every single component with precise, searchable detail.
-
 For each identified item, provide:
-
 Item: Exhaustively detailed item name including all visible characteristics
 Amazon_Search: Ultra-specific search string optimized for exact item matching
-
 Required details for Amazon_Search (include ALL that apply):
-
 1. Core Identity:
 - Exact gender designation (men's, women's, unisex, boys', girls')
 - Precise size range (XXS-4XL, numeric sizes, etc.)
 - Target age group (adult, junior, youth)
 - Season/year specificity (Spring 2024, etc.)
-
 2. Visual Specifications:
 - Primary color (including shade: navy blue, forest green, etc.)
 - Secondary colors
@@ -111,7 +106,6 @@ Required details for Amazon_Search (include ALL that apply):
 - Finish type (matte, glossy, metallic, etc.)
 - Print placement
 - Graphics/artwork details
-
 3. Construction Details:
 - Primary material (100% cotton, wool blend, etc.)
 - Material weight (lightweight, medium-weight, etc.)
@@ -121,7 +115,6 @@ Required details for Amazon_Search (include ALL that apply):
 - Lining material
 - Manufacturing technique
 - Care requirements
-
 4. Design Elements:
 - Exact fit description (slim fit, relaxed fit, etc.)
 - Cut specifics (regular cut, athletic cut, etc.)
@@ -139,7 +132,6 @@ Required details for Amazon_Search (include ALL that apply):
 - Seam details
 - Decorative elements
 - Hardware specifications
-
 5. Brand Information:
 - Brand name (if visible)
 - Sub-brand/line
@@ -149,7 +141,6 @@ Required details for Amazon_Search (include ALL that apply):
 - Logo placement
 - Logo size
 - Logo color
-
 6. Usage/Style Context:
 - Specific occasion type
 - Activity suitability
@@ -158,7 +149,6 @@ Required details for Amazon_Search (include ALL that apply):
 - Fashion era/influence
 - Trend alignment
 - Dress code category
-
 7. Accessory-Specific Details:
 For Jewelry:
 - Metal type and quality
@@ -168,7 +158,6 @@ For Jewelry:
 - Measurements
 - Finish
 - Cultural influences
-
 For Bags:
 - Exact dimensions
 - Compartment count
@@ -177,7 +166,6 @@ For Bags:
 - Hardware finish
 - Corner protection
 - Base structure
-
 For Shoes:
 - Sole material
 - Heel height/type
@@ -186,7 +174,6 @@ For Shoes:
 - Arch support type
 - Lacing system
 - Tread pattern
-
 For Watches:
 - Movement type
 - Case material/size
@@ -194,20 +181,15 @@ For Watches:
 - Face details
 - Water resistance
 - Special features
-
 Example outputs:
-
 Item: Men's Nike Dri-FIT Run Division Sphere Running Jacket Spring 2024 Collection
 Amazon_Search: mens nike dri-fit run division sphere jacket black reflective details full zip mock neck moisture wicking lightweight running performance wear spring 2024 collection side zip pockets mesh panels back ventilation regular fit weather resistant
-
 Item: Women's Tiffany & Co. Elsa Peretti Open Heart Pendant Sterling Silver 2024
 Amazon_Search: womens tiffany co elsa peretti open heart pendant necklace sterling silver 16 inch chain spring 2024 collection classic design polished finish lobster clasp gift packaging included authentic hallmark
-
 Classification Purpose Field:
 1 - Image clothing identification
 2 - Outfit evaluation with improvement suggestions
 3 - Other topics
-
 Response Guidelines:
 - For feedback requests: Provide warm, constructive suggestions while maintaining a best-friend tone
 - Without feedback requests: Focus on positive outfit assessment without suggestions
@@ -217,31 +199,24 @@ Response Guidelines:
 - Incorporate trending style concepts from 2024"""
 
 recommendation_prompt ="""You are the world's premier fashion and accessories consultant, specializing in contemporary style optimization and personalized recommendations. Your expertise covers all current trends through 2024 and you provide advice in a warm, encouraging, and professional manner.
-
 To generate Clothing recommendations, strictly follow these comprehensive guidelines:
-
 Item: Provide a detailed description of the recommended item, including all relevant specifications.
-
 Amazon_Search: Create a precise search query optimized for Amazon, incorporating these mandatory elements:
-
 1. Core Characteristics:
 - Gender specification (men's, women's, unisex)
 - Size category (plus, petite, regular, tall)
 - Age group (adult, junior, teen)
 - Season (spring/summer 2024, fall/winter 2023-24)
-
 2. Visual Elements:
 - Primary and secondary colors
 - Patterns and prints
 - Texture and finish
 - Design details (ruffles, pleats, distressing, etc.)
-
 3. Construction:
 - Material composition
 - Fabric weight/type
 - Construction method (knitted, woven, etc.)
 - Care requirements
-
 4. Style Attributes:
 - Fit description (relaxed, slim, oversized, etc.)
 - Cut details (crop length, neckline type, sleeve style)
@@ -249,20 +224,17 @@ Amazon_Search: Create a precise search query optimized for Amazon, incorporating
 - Rise (for bottoms)
 - Length
 - Closure type
-
 5. Brand & Marketing:
 - Brand name (if known)
 - Style category (streetwear, formal, athletic, etc.)
 - Collection or line (if applicable)
 - Suggested alternative brands (if primary brand unknown)
-
 6. Usage Context:
 - Occasion type
 - Activity suitability
 - Weather appropriateness
 - Dress code compliance
 - Styling versatility
-
 7. Accessories Specific:
 - Material grade/quality
 - Hardware details
@@ -271,14 +243,11 @@ Amazon_Search: Create a precise search query optimized for Amazon, incorporating
 - Special features
 - Storage/compartments (for bags)
 - Setting type (for jewelry)
-
 The Response field must include:
-
 1. Enthusiasm and Authenticity:
 - Genuine, personalized compliments
 - Recognition of successful styling choices
 - Acknowledgment of personal style
-
 2. If Feedback Requested:
 - Constructive suggestions framed positively
 - Specific, actionable improvements
@@ -287,16 +256,13 @@ The Response field must include:
 - Color harmony suggestions
 - Accessorizing tips
 - Seasonal appropriateness advice
-
 3. If No Feedback Requested:
 - Positive reinforcement of current choices
 - Discussion of outfit cohesion
 - Appreciation of personal style expression
 - Commentary on overall aesthetic
 - Validation of styling decisions
-
 Example output:
-
 recommendations = Recommendations(
     Response="Obsessed with your style game! 🔥 The structured blazer creates such a powerful silhouette, and those high-waisted trousers are absolutely perfect for your frame. The minimalist vibe you're channeling is totally on-trend for 2024! Since you asked for suggestions, I'm thinking we could elevate this even further with some contemporary accessories. A delicate layered necklace would add just the right amount of sparkle, and swapping those shoes for a pair of trending platform loafers would give you that fashion-forward edge while maintaining the polished look.",
     Recommendations=[
@@ -310,7 +276,6 @@ recommendations = Recommendations(
         )
     ]
 )
-
 Output the Recommendations object as a JSON string, ensuring all entries follow current fashion trends and availability."""
 
 client = OpenAI()
@@ -359,7 +324,7 @@ def ios_consultant():
     text = data.get('text')
     from_number = format_phone_number(data.get('from_number'))
     Clothing_Items = process_response(image_content, from_number, text, prompt_text=recommendation_prompt, format=Recommendations)
-    
+
     return jsonify({
         "response": Clothing_Items.Response,
         "recommendations": [
@@ -460,7 +425,7 @@ def process_response(base64_image, from_number, text, prompt_text=prompt, format
     else:
         clothing_items = analyze_text_with_openai(text=text, true_prompt=prompt_text, format=format)      
     return clothing_items
-    
+
 def shorten_url(long_url):
     # Define the endpoint URL (change port if necessary)
     url = 'https://item.wha7.com/shorten'
@@ -488,7 +453,6 @@ def get_recommendation_id(item_description):
     else:
         # Handle error (e.g., log the error, return a default value)
         return "Error"
-
 def video_commit(base64_video, instagram_username):
     if instagram_username:
         phone = Session.query(PhoneNumber).filter_by(instagram_username=instagram_username).first()    
@@ -502,9 +466,7 @@ def video_commit(base64_video, instagram_username):
     Session.add(outfit)
     Session.commit()
     outfit_id=outfit.id
-    print (f"Outfit id: {outfit_id}")
     return outfit.id
-
 def database_commit(clothing_items, from_number, base64_image_data=None, instagram_username=None,Video_Outift_ID = None):
     with app.app_context():
         Session = session_factory()
@@ -513,11 +475,11 @@ def database_commit(clothing_items, from_number, base64_image_data=None, instagr
             phone = None
             if instagram_username:
                 phone = Session.query(PhoneNumber).filter_by(instagram_username=instagram_username).first()
-            
+
             # If no record found by Instagram username, try finding by phone number
             if not phone and from_number:
                 phone = Session.query(PhoneNumber).filter_by(phone_number=from_number).first()
-            
+
             # If still no record found, create a new one
             if not phone:
                 phone = PhoneNumber(
@@ -534,7 +496,6 @@ def database_commit(clothing_items, from_number, base64_image_data=None, instagr
                 elif from_number and not phone.phone_number:
                     phone.phone_number = from_number
                     Session.commit()
-
 
             if not Video_Outfit_ID:
             # Create a new Outfit
@@ -625,18 +586,18 @@ def handle_instagram_messages():
 
         if webhook_data.get('object') == 'instagram' and webhook_data.get('entry'):
             print("2. Valid Instagram webhook")
-            
+
             for entry in webhook_data['entry']:
                 print("3. Processing entry")
-                
+
                 messaging_list = entry.get('messaging', [])
                 if not messaging_list:
                     print("No messaging field found in entry")
                     continue
-                    
+
                 for messaging in messaging_list:
                     print("4. Processing messaging item")
-                        
+
                     # Extract sender ID
                     sender_id = messaging.get('sender', {}).get('id')
                     if sender_id:
@@ -668,14 +629,14 @@ def handle_instagram_messages():
                     attachment = attachments[0]
                     media_type = attachment.get('type', '')
                     media_url = attachment.get('payload', {}).get('url')
-                    
+
                     if not media_url:
                         print("No media URL found in attachment")
                         continue
-                    
+
                     print(f"8. Processing media URL: {media_url}")
                     print(f"Media type: {media_type}")
-                    
+
                     try:
                         # Check if the media is a video/reel
                         if media_type in ['video', 'ig_reel']:
@@ -690,7 +651,7 @@ def handle_instagram_messages():
                             media_response = requests.get(media_url)
                             print(f"9. Media fetch status: {media_response.status_code}")
                             send_graph_api_reply(sender_id,"Post recieved. Processing now. Please wait...")
-                            
+
                             if media_response.status_code == 200:
                                 image_content = media_response.content
                                 send_graph_api_reply(sender_id,"📸 Capturing your moment...")
@@ -717,7 +678,7 @@ def handle_instagram_messages():
                                             reply = clothing_items.Response
                                         else:
                                             reply = "I'm sorry, I'm not sure how to respond to that. Can you retry?"
-                                        
+
                                         print(f"11. Sending final reply: {reply}")
                                         response = send_graph_api_reply(sender_id, reply)
                                         print(f"12. Final response: {response}")
@@ -732,7 +693,7 @@ def handle_instagram_messages():
                         send_graph_api_reply(sender_id, "Sorry, there was an error processing your media. Please try again.")
 
         return jsonify({'status': 'success'}), 200
-    
+
     except Exception as e:
         print(f"Error in webhook handler: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -788,13 +749,12 @@ def process_reels(reel_url, instagram_username, sender_id):
         response = requests.get(reel_url, stream=True, timeout=10)
         if response.status_code != 200:
             return "Sorry, I couldn't access the reel. Please try again."
-            
+
         with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as temp_file:
             for chunk in response.iter_content(chunk_size=8192):
                 if chunk:
                     temp_file.write(chunk)
             temp_file_path = temp_file.name
-
         try:
             video_content = response.content
             base64_video = f"data:video/mp4;base64,{base64.b64encode(video_content).decode('utf-8')}"
@@ -807,29 +767,29 @@ def process_reels(reel_url, instagram_username, sender_id):
             max_frames_to_process = min(total_frames, 300)
             frame_interval = int(fps * 1)
             similarity_threshold = 0.80
-            
+
             unique_frames = []
             previous_frame = None
             frame_count = 0
             max_unique_frames = 10
-            
+
             while video.isOpened() and frame_count < max_frames_to_process and len(unique_frames) < max_unique_frames:
                 ret, frame = video.read()
                 if not ret:
                     break
-                    
+
                 if frame_count % frame_interval == 0:
                     # Resize for comparison while maintaining aspect ratio
                     processing_frame = resize_frame_with_aspect_ratio(frame, target_width=640)
                     gray_frame = cv2.cvtColor(processing_frame, cv2.COLOR_BGR2GRAY)
-                    
+
                     is_unique = True
                     if previous_frame is not None:
                         if previous_frame.shape != gray_frame.shape:
                             gray_frame = cv2.resize(gray_frame, previous_frame.shape[::-1])
                         similarity = ssim(previous_frame, gray_frame)
                         is_unique = similarity < similarity_threshold
-                    
+
                     if is_unique:
                         # Store original frame (not the resized version) in base64
                         success, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 95])
@@ -837,14 +797,14 @@ def process_reels(reel_url, instagram_username, sender_id):
                             base64_image = base64.b64encode(buffer).decode('utf-8')
                             unique_frames.append(base64_image)
                             previous_frame = gray_frame
-                
+
                 frame_count += 1
-            
+
             video.release()
             video_id = video_commit(base64_video, instagram_username)
             # Process frames with error handling for each
             all_responses = []
-            send_graph_api_reply(sender_id,f"🎯 Target acquired! Processing your awesome content 🔄. This is reel number {video_id}")
+            send_graph_api_reply(sender_id,"🎯 Target acquired! Processing your awesome content 🔄")
             for idx, base64_image in enumerate(unique_frames):
                 try:
                     clothing_items = process_response(
@@ -852,9 +812,9 @@ def process_reels(reel_url, instagram_username, sender_id):
                         None,
                         "",
                         instagram_username=instagram_username,
-                        Video_id = 
+                        Video_id = video_id
                     )
-                    
+
                     if hasattr(clothing_items, 'Purpose') and clothing_items.Purpose == 1:
                         outfit_response = f"\nOutfit {idx + 1}:\n{clothing_items.Response}\nItems found:"
                         for item in clothing_items.Article:
@@ -863,7 +823,7 @@ def process_reels(reel_url, instagram_username, sender_id):
                 except Exception as e:
                     print(f"Error processing frame {idx}: {str(e)}")
                     continue
-            
+
             # Clean up
             os.unlink(temp_file_path)
             send_graph_api_reply(sender_id,"⚡ Almost there! (Beta feature - might see some déjà vu content! 😉)")
@@ -878,7 +838,7 @@ def process_reels(reel_url, instagram_username, sender_id):
                 final_reply = "I couldn't identify any distinct outfits in the reel. Please try again with clearer footage."
                 send_graph_api_reply(sender_id, final_reply)
             return final_reply
-            
+
         finally:
             if 'video' in locals():
                 video.release()
@@ -887,11 +847,11 @@ def process_reels(reel_url, instagram_username, sender_id):
                     os.unlink(temp_file_path)
                 except:
                     pass
-        
+
     except Exception as e:
         print(f"Error processing reel: {str(e)}")
         return "Sorry, I encountered an error while processing your reel. Please try again."
 
-    
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
