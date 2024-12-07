@@ -807,10 +807,11 @@ def process_reels(reel_url, instagram_username, sender_id):
                 frame_count += 1
 
             video.release()
+            send_graph_api_reply(sender_id,"🎯 Target acquired! Processing your awesome content 🔄")
             video_id = video_commit(base64_video, instagram_username)
             # Process frames with error handling for each
             all_responses = []
-            send_graph_api_reply(sender_id,"🎯 Target acquired! Processing your awesome content 🔄")
+
             for idx, base64_image in enumerate(unique_frames):
                 try:
                     clothing_items = process_response(
