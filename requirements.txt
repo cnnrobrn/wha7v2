@@ -30,10 +30,6 @@ python-dotenv==1.0.0    # For environment variable management
 # System Monitoring and Performance
 psutil==5.9.5           # For system and process monitoring
 
-# Custom Packages
-# Note: Requires GitHub authentication
-git+https://${GITHUB_TOKEN}@github.com/cnnrobrn/wha7-models.git@main
-
 # Development Dependencies (optional)
 # pytest==7.4.2          # For testing
 # black==23.9.1          # For code formatting
