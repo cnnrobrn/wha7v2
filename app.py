@@ -2,9 +2,10 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File, Request, BackgroundTasks
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, relationship, declarative_base
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime, ForeignKey
+from datetime import datetime
 
 # Third-party imports
 from twilio.twiml.messaging_response import MessagingResponse
@@ -33,6 +34,9 @@ from wha7_models import PhoneNumber, Outfit, Item  # Import necessary models
 app = FastAPI()
 
 # Add CORS middleware
+app = FastAPI()
+
+# Enable CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Allows all origins
@@ -56,16 +60,75 @@ INSTAGRAM_BUSINESS_ACCOUNT_ID = os.getenv('INSTAGRAM_BUSINESS_ACCOUNT_ID')
 WEBHOOK_VERIFY_TOKEN = os.getenv('WEBHOOK_VERIFY_TOKEN')
 GRAPH_API_URL = "https://graph.instagram.com/v12.0"
 
-# Configure SQLAlchemy for async
-DATABASE_URL_ASYNC = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://")
-engine_async = create_async_engine(DATABASE_URL_ASYNC)
-async_session_factory = sessionmaker(engine_async, expire_on_commit=False, class_=AsyncSession)
+# SQLAlchemy setup
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# Dependency to get async database session
-async def get_async_db():
-    async with async_session_factory() as session:
-        yield session
+# Define your database models here (same as your wha7_models.py)
+class PhoneNumber(Base):
+    __tablename__ = "phone_numbers"
+    id = Column(Integer, primary_key=True, index=True)
+    phone_number = Column(String, unique=True, index=True)
+    instagram_username = Column(String, unique=True, index=True, nullable=True)
+    is_activated = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    outfits = relationship("Outfit", back_populates="phone")
+    referral_codes = relationship("ReferralCode", back_populates="phone")
+
+class Outfit(Base):
+    __tablename__ = "outfits"
+    id = Column(Integer, primary_key=True, index=True)
+    phone_id = Column(Integer, ForeignKey("phone_numbers.id"))
+    image_data = Column(String)
+    description = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    phone = relationship("PhoneNumber", back_populates="outfits")
+    items = relationship("Item", back_populates="outfit")
+
+class Item(Base):
+    __tablename__ = "items"
+    id = Column(Integer, primary_key=True, index=True)
+    outfit_id = Column(Integer, ForeignKey("outfits.id"))
+    description = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    outfit = relationship("Outfit", back_populates="items")
+    links = relationship("Link", back_populates="item")
+
+class Link(Base):
+    __tablename__ = "links"
+    id = Column(Integer, primary_key=True, index=True)
+    item_id = Column(Integer, ForeignKey("items.id"))
+    photo_url = Column(String, nullable=True)
+    url = Column(String)
+    price = Column(String, nullable=True)
+    title = Column(String, nullable=True)
+    rating = Column(String, nullable=True)
+    reviews_count = Column(String, nullable=True)
+    merchant_name = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    item = relationship("Item", back_populates="links")
+
+class ReferralCode(Base):
+    __tablename__ = "referral_codes"
+    id = Column(Integer, primary_key=True, index=True)
+    phone_id = Column(Integer, ForeignKey("phone_numbers.id"))
+    code = Column(String, unique=True, index=True)
+    used_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    phone = relationship("PhoneNumber", back_populates="referral_codes")
+
+class Referral(Base):
+    __tablename__ = "referrals"
+    id = Column(Integer, primary_key=True, index=True)
+    referrer_id = Column(Integer, ForeignKey("phone_numbers.id"))
+    referred_id = Column(Integer, ForeignKey("phone_numbers.id"))
+    code_used = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+# Create tables if they don't exist
+Base.metadata.create_all(bind=engine)
+
 
 # Your pydantic models remain the same
 class Clothing(BaseModel):

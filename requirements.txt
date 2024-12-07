@@ -7,7 +7,8 @@ alembic==1.12.0
 # Database Connectors and ORM Support
 psycopg2-binary==2.9.9  # Binary version for easier deployment
 asyncpg==0.28.0         # Async database support
-
+sqlalchemy==2.0.21       # SQL toolkit and ORM
+databases==0.7.0        # Async database support for SQLAlchemy
 # API Integrations and Networking
 twilio==8.10.0
 openai==1.3.0           # Latest version for improved API support
