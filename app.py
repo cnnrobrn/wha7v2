@@ -750,14 +750,16 @@ def process_reels(reel_url, instagram_username, sender_id):
         if response.status_code != 200:
             return "Sorry, I couldn't access the reel. Please try again."
 
+        # Read the content once and store it
+        video_content = response.content
+        base64_video = f"data:video/mp4;base64,{base64.b64encode(video_content).decode('utf-8')}"
+        
+        # Write the content to a temporary file for OpenCV processing
         with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as temp_file:
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
-                    temp_file.write(chunk)
+            temp_file.write(video_content)
             temp_file_path = temp_file.name
+
         try:
-            video_content = response.content
-            base64_video = f"data:video/mp4;base64,{base64.b64encode(video_content).decode('utf-8')}"
             video = cv2.VideoCapture(temp_file_path)
             if not video.isOpened():
                 return "Sorry, I couldn't process the reel. Please try again."
@@ -779,7 +781,6 @@ def process_reels(reel_url, instagram_username, sender_id):
                     break
 
                 if frame_count % frame_interval == 0:
-                    # Resize for comparison while maintaining aspect ratio
                     processing_frame = resize_frame_with_aspect_ratio(frame, target_width=640)
                     gray_frame = cv2.cvtColor(processing_frame, cv2.COLOR_BGR2GRAY)
 
@@ -791,7 +792,6 @@ def process_reels(reel_url, instagram_username, sender_id):
                         is_unique = similarity < similarity_threshold
 
                     if is_unique:
-                        # Store original frame (not the resized version) in base64
                         success, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 95])
                         if success:
                             base64_image = base64.b64encode(buffer).decode('utf-8')
@@ -802,9 +802,10 @@ def process_reels(reel_url, instagram_username, sender_id):
 
             video.release()
             video_id = video_commit(base64_video, instagram_username)
+            
             # Process frames with error handling for each
             all_responses = []
-            send_graph_api_reply(sender_id,"🎯 Target acquired! Processing your awesome content 🔄")
+            send_graph_api_reply(sender_id, "🎯 Target acquired! Processing your awesome content 🔄")
             for idx, base64_image in enumerate(unique_frames):
                 try:
                     clothing_items = process_response(
@@ -812,7 +813,7 @@ def process_reels(reel_url, instagram_username, sender_id):
                         None,
                         "",
                         instagram_username=instagram_username,
-                        Video_id = video_id
+                        Video_id=video_id
                     )
 
                     if hasattr(clothing_items, 'Purpose') and clothing_items.Purpose == 1:
@@ -826,12 +827,12 @@ def process_reels(reel_url, instagram_username, sender_id):
 
             # Clean up
             os.unlink(temp_file_path)
-            send_graph_api_reply(sender_id,"⚡ Almost there! (Beta feature - might see some déjà vu content! 😉)")
+            send_graph_api_reply(sender_id, "⚡ Almost there! (Beta feature - might see some déjà vu content! 😉)")
             if all_responses:
                 final_reply = f"I found {len(all_responses)} different outfits in your reel:"
                 send_graph_api_reply(sender_id, final_reply)
                 for item in all_responses:
-                    send_graph_api_reply(sender_id,item)
+                    send_graph_api_reply(sender_id, item)
                 send_graph_api_reply(sender_id, "You can view all outfits on the Wha7 app. Download from the App Store!")
                 return final_reply
             else:
