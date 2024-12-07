@@ -1,25 +1,25 @@
 # Base Web Framework and Extensions
-fastapi==0.103.1   
-
+fastapi==0.103.1
 gunicorn==21.2.0
 
 # Database Connectors and ORM Support
 psycopg2-binary==2.9.9  # Binary version for easier deployment
 asyncpg==0.28.0         # Async database support
-sqlalchemy==2.0.21       # SQL toolkit and ORM
+sqlalchemy==2.0.21      # SQL toolkit and ORM
 databases==0.7.0        # Async database support for SQLAlchemy
+
 # API Integrations and Networking
 twilio==8.10.0
 openai==1.3.0           # Latest version for improved API support
 requests==2.31.0
-httpx==0.25.0          # Modern HTTP client with async support
+httpx==0.25.0           # Modern HTTP client with async support
 instagram-private-api==1.6.0.0
 
 # Image and Video Processing
 opencv-python-headless==4.8.1.78  # Headless version for server deployment
 numpy==1.24.3                     # Specific version for compatibility with OpenCV
 Pillow==10.0.1                    # For image processing
-scikit-image==0.22.0             # For structural similarity comparisons
+scikit-image==0.22.0              # For structural similarity comparisons
 
 # Data Validation and Models
 pydantic==2.4.2         # For data validation and settings management
