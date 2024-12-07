@@ -451,12 +451,12 @@ def analyze_image_with_openai(base64_image=None,text=None,true_prompt=prompt,for
     except Exception as e:
         print(f"Error analyzing image with OpenAI: {e}")
         return None
-def process_response(base64_image, from_number, text, prompt_text=prompt, format=Outfits, instagram_username=None):
+def process_response(base64_image, from_number, text, prompt_text=prompt, format=Outfits, instagram_username=None, Video_id = None):
     if base64_image:
         base64_image_data = f"data:image/jpeg;base64,{base64_image}"
         clothing_items = analyze_image_with_openai(base64_image_data, text, prompt_text, format)
         if format == Outfits:
-            database_commit(clothing_items, from_number, base64_image_data, instagram_username)
+            database_commit(clothing_items, from_number, base64_image_data, instagram_username,Video_Outfit_ID=Video_id)
     else:
         clothing_items = analyze_text_with_openai(text=text, true_prompt=prompt_text, format=format)      
     return clothing_items
@@ -488,7 +488,23 @@ def get_recommendation_id(item_description):
     else:
         # Handle error (e.g., log the error, return a default value)
         return "Error"
-def database_commit(clothing_items, from_number, base64_image_data=None, instagram_username=None):
+
+def video_commit(base64_video, instagram_username):
+    if instagram_username:
+        phone = Session.query(PhoneNumber).filter_by(instagram_username=instagram_username).first()    
+        if not phone:
+            phone = PhoneNumber(
+                instagram_username=instagram_username
+            )
+            Session.add(phone)
+            Session.commit()
+    outfit = Outfit(phone_id=phone.id, image_data=base64_video, description="reel")
+    Session.add(outfit)
+    Session.commit()
+    outfit_id=outfit.id
+    return outfit.id
+
+def database_commit(clothing_items, from_number, base64_image_data=None, instagram_username=None,Video_Outift_ID = None):
     with app.app_context():
         Session = session_factory()
         try:
@@ -518,23 +534,28 @@ def database_commit(clothing_items, from_number, base64_image_data=None, instagr
                     phone.phone_number = from_number
                     Session.commit()
 
+
+            if not Video_Outfit_ID:
             # Create a new Outfit
-            outfit = Outfit(phone_id=phone.id, image_data=base64_image_data, description="Outfit from image")
-            Session.add(outfit)
-            Session.commit()
-                    
-            if clothing_items.Article is not None:
-                for item in clothing_items.Article:
-                    new_item = Item(
-                        outfit_id=outfit.id, 
-                        description=item.Item, 
-                        search=item.Amazon_Search, 
-                        processed_at=None
-                    )
-                    Session.add(new_item)
-                    Session.commit()
+                outfit = Outfit(phone_id=phone.id, image_data=base64_image_data, description="Outfit from image")
+                Session.add(outfit)
+                Session.commit()
+                outfit_id=outfit.id
             else:
-                print("No items found in clothing_items.Article")
+                outfit_id=Video_Outfit_ID
+            if clothing_items:
+                if clothing_items.Article is not None:
+                    for item in clothing_items.Article:
+                        new_item = Item(
+                            outfit_id=outfit_id, 
+                            description=item.Item, 
+                            search=item.Amazon_Search, 
+                            processed_at=None
+                        )
+                        Session.add(new_item)
+                        Session.commit()
+                else:
+                    print("No items found in clothing_items.Article")
         finally:
             Session.close()
 
@@ -772,8 +793,10 @@ def process_reels(reel_url, instagram_username, sender_id):
                 if chunk:
                     temp_file.write(chunk)
             temp_file_path = temp_file.name
-        
+
         try:
+            video_content = response.content
+            base64_video = f"data:video/mp4;base64,{base64.b64encode(video_content).decode('utf-8')}"
             video = cv2.VideoCapture(temp_file_path)
             if not video.isOpened():
                 return "Sorry, I couldn't process the reel. Please try again."
@@ -781,13 +804,13 @@ def process_reels(reel_url, instagram_username, sender_id):
             fps = min(video.get(cv2.CAP_PROP_FPS), 30)
             total_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
             max_frames_to_process = min(total_frames, 300)
-            frame_interval = int(fps * 2)
+            frame_interval = int(fps * 1)
             similarity_threshold = 0.80
             
             unique_frames = []
             previous_frame = None
             frame_count = 0
-            max_unique_frames = 5
+            max_unique_frames = 10
             
             while video.isOpened() and frame_count < max_frames_to_process and len(unique_frames) < max_unique_frames:
                 ret, frame = video.read()
@@ -817,7 +840,7 @@ def process_reels(reel_url, instagram_username, sender_id):
                 frame_count += 1
             
             video.release()
-
+            video_id = video_commit(base64_video, instagram_username)
             # Process frames with error handling for each
             all_responses = []
             send_graph_api_reply(sender_id,"🎯 Target acquired! Processing your awesome content 🔄")
@@ -827,7 +850,8 @@ def process_reels(reel_url, instagram_username, sender_id):
                         base64_image,
                         None,
                         "",
-                        instagram_username=instagram_username
+                        instagram_username=instagram_username,
+                        Video_id = video_id
                     )
                     
                     if hasattr(clothing_items, 'Purpose') and clothing_items.Purpose == 1:
