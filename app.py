@@ -502,6 +502,7 @@ def video_commit(base64_video, instagram_username):
     Session.add(outfit)
     Session.commit()
     outfit_id=outfit.id
+    print (f"Outfit id: {outfit_id}")
     return outfit.id
 
 def database_commit(clothing_items, from_number, base64_image_data=None, instagram_username=None,Video_Outift_ID = None):
@@ -843,7 +844,7 @@ def process_reels(reel_url, instagram_username, sender_id):
             video_id = video_commit(base64_video, instagram_username)
             # Process frames with error handling for each
             all_responses = []
-            send_graph_api_reply(sender_id,"🎯 Target acquired! Processing your awesome content 🔄")
+            send_graph_api_reply(sender_id,f"🎯 Target acquired! Processing your awesome content 🔄. This is reel number {video_id}")
             for idx, base64_image in enumerate(unique_frames):
                 try:
                     clothing_items = process_response(
@@ -851,7 +852,7 @@ def process_reels(reel_url, instagram_username, sender_id):
                         None,
                         "",
                         instagram_username=instagram_username,
-                        Video_id = video_id
+                        Video_id = 
                     )
                     
                     if hasattr(clothing_items, 'Purpose') and clothing_items.Purpose == 1:
