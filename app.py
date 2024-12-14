@@ -600,11 +600,6 @@ def handle_instagram_messages():
         webhook_data = request.json
         print("1. Webhook received")
         print(f"Received webhook data: {json.dumps(webhook_data, indent=2)}")
-        # Add these debug prints right after getting the message
-        print("Full message object:", json.dumps(message, indent=2))
-        print("Shared media data:", json.dumps(message.get('shared_media', {}), indent=2))
-        print("Attachments:", json.dumps(attachments, indent=2))
-        print("Selected index:", shared_media_index)
 
         if webhook_data.get('object') == 'instagram' and webhook_data.get('entry'):
             print("2. Valid Instagram webhook")
@@ -619,6 +614,7 @@ def handle_instagram_messages():
                     
                 for messaging in messaging_list:
                     print("4. Processing messaging item")
+                    
                         
                     # Extract sender ID
                     sender_id = messaging.get('sender', {}).get('id')
@@ -635,6 +631,12 @@ def handle_instagram_messages():
 
                     # Extract message content
                     message = messaging.get('message', {})
+
+                    #ID - finderchange
+                    print("Full message object:", json.dumps(message, indent=2))
+                    print("Shared media data:", json.dumps(message.get('shared_media', {}), indent=2))
+                    print("Attachments:", json.dumps(attachments, indent=2))
+                    print("Selected index:", shared_media_index)
                     if not message:
                         print("No message content found")
                         continue
