@@ -630,6 +630,8 @@ def handle_instagram_messages():
 
                     # Extract message content
                     message = messaging.get('message', {})
+                    print(f"Full message content: {json.dumps(message, indent=2)}")
+                    
                     if not message:
                         print("No message content found")
                         continue
@@ -641,24 +643,30 @@ def handle_instagram_messages():
                         print(f"Default message response: {reply}")
                         continue
 
-                    # Process the first attachment (Instagram provides the selected image as a single attachment)
+                    # Process the first attachment
                     attachment = attachments[0]
                     media_type = attachment.get('type', '')
                     media_url = attachment.get('payload', {}).get('url')
-                    
-                    print(f"Media type: {media_type}")
-                    print(f"Media URL: {media_url}")
                     
                     if not media_url:
                         print("No media URL found in attachment")
                         continue
                     
+                    # Extract asset_id from the URL
+                    try:
+                        asset_id = media_url.split('asset_id=')[1].split('&')[0]
+                        print(f"Extracted asset ID: {asset_id}")
+                    except Exception as e:
+                        print(f"Error extracting asset ID: {str(e)}")
+                        asset_id = None
+                    
                     print(f"8. Processing media URL: {media_url}")
+                    print(f"Asset ID: {asset_id}")
+                    print(f"Media type: {media_type}")
                     
                     try:
-                        # Handle shared content (including carousel images) and videos/reels
+                        # Handle shared content and videos/reels
                         if media_type == 'share':
-                            # Process as image since shares (including from carousel) come as "share" type
                             media_response = requests.get(media_url)
                             print(f"9. Media fetch status: {media_response.status_code}")
                             send_graph_api_reply(sender_id, "Post received. Processing now. Please wait...")
