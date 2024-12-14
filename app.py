@@ -618,7 +618,6 @@ def handle_instagram_messages():
                     # Extract sender ID
                     sender_id = messaging.get('sender', {}).get('id')
                     if sender_id:
-                        # Fetch the username using the sender ID
                         sender_username = get_username(sender_id)
                         if sender_username:
                             print(f"Sender ID: {sender_id}, Username: {sender_username}")
@@ -642,8 +641,11 @@ def handle_instagram_messages():
                         print(f"Default message response: {reply}")
                         continue
 
-                    # Process the first attachment
-                    attachment = attachments[0]
+                    # Get the index of the shared media from the message
+                    shared_media_index = message.get('shared_media', {}).get('index', 0)
+                    
+                    # Process the specifically shared attachment if available, otherwise fallback to first
+                    attachment = attachments[shared_media_index] if shared_media_index < len(attachments) else attachments[0]
                     media_type = attachment.get('type', '')
                     media_url = attachment.get('payload', {}).get('url')
                     
@@ -655,19 +657,17 @@ def handle_instagram_messages():
                     print(f"Media type: {media_type}")
                     
                     try:
-                        # Check if the media is a video/reel
-                        if media_type in ['video', 'ig_reel']:
+                        # Rest of your processing logic remains the same
+                        if media_type in ['video', 'reel']:
                             print("Processing video/reel content")
                             send_graph_api_reply(sender_id,"🎬 Exciting reel spotted! Let's see what we've got...")
-
-                            reply = process_reels(media_url, sender_username,sender_id)
+                            reply = process_reels(media_url, sender_username, sender_id)
                             print(f"11. Sending final reply for video: {reply}")
-
                         else:
-                            # Handle image processing as before
+                            # Handle image processing
                             media_response = requests.get(media_url)
                             print(f"9. Media fetch status: {media_response.status_code}")
-                            send_graph_api_reply(sender_id,"Post recieved. Processing now. Please wait...")
+                            send_graph_api_reply(sender_id,"Post received. Processing now. Please wait...")
                             
                             if media_response.status_code == 200:
                                 image_content = media_response.content
@@ -841,7 +841,7 @@ def process_reels(reel_url, instagram_username, sender_id):
             
             # Clean up
             os.unlink(temp_file_path)
-            send_graph_api_reply(sender_id,"⚡ Almost there! (Beta feature - might see some déjà vu content! 😉)")
+            send_graph_api_reply(sender_id,"⚡ Almost there! (Beta feature - might see some déjà vu content! 😉). We're looking to update reels in our next release!")
             if all_responses:
                 final_reply = f"I found {len(all_responses)} different outfits in your reel:"
                 send_graph_api_reply(sender_id, final_reply)
