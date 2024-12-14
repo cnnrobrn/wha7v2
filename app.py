@@ -614,7 +614,6 @@ def handle_instagram_messages():
                     
                 for messaging in messaging_list:
                     print("4. Processing messaging item")
-                    
                         
                     # Extract sender ID
                     sender_id = messaging.get('sender', {}).get('id')
@@ -631,12 +630,6 @@ def handle_instagram_messages():
 
                     # Extract message content
                     message = messaging.get('message', {})
-
-                    #ID - finderchange
-                    print("Full message object:", json.dumps(message, indent=2))
-                    print("Shared media data:", json.dumps(message.get('shared_media', {}), indent=2))
-                    print("Attachments:", json.dumps(attachments, indent=2))
-                    print("Selected index:", shared_media_index)
                     if not message:
                         print("No message content found")
                         continue
@@ -648,39 +641,33 @@ def handle_instagram_messages():
                         print(f"Default message response: {reply}")
                         continue
 
-                    # Get the index of the shared media from the message
-                    shared_media_index = message.get('shared_media', {}).get('index', 0)
-                    
-                    # Process the specifically shared attachment if available, otherwise fallback to first
-                    attachment = attachments[shared_media_index] if shared_media_index < len(attachments) else attachments[0]
+                    # Process the first attachment (Instagram provides the selected image as a single attachment)
+                    attachment = attachments[0]
                     media_type = attachment.get('type', '')
                     media_url = attachment.get('payload', {}).get('url')
+                    
+                    print(f"Media type: {media_type}")
+                    print(f"Media URL: {media_url}")
                     
                     if not media_url:
                         print("No media URL found in attachment")
                         continue
                     
                     print(f"8. Processing media URL: {media_url}")
-                    print(f"Media type: {media_type}")
                     
                     try:
-                        # Rest of your processing logic remains the same
-                        if media_type in ['video', 'reel']:
-                            print("Processing video/reel content")
-                            send_graph_api_reply(sender_id,"🎬 Exciting reel spotted! Let's see what we've got...")
-                            reply = process_reels(media_url, sender_username, sender_id)
-                            print(f"11. Sending final reply for video: {reply}")
-                        else:
-                            # Handle image processing
+                        # Handle shared content (including carousel images) and videos/reels
+                        if media_type == 'share':
+                            # Process as image since shares (including from carousel) come as "share" type
                             media_response = requests.get(media_url)
                             print(f"9. Media fetch status: {media_response.status_code}")
-                            send_graph_api_reply(sender_id,"Post received. Processing now. Please wait...")
+                            send_graph_api_reply(sender_id, "Post received. Processing now. Please wait...")
                             
                             if media_response.status_code == 200:
                                 image_content = media_response.content
-                                send_graph_api_reply(sender_id,"📸 Capturing your moment...")
+                                send_graph_api_reply(sender_id, "📸 Capturing your moment...")
                                 base64_image = base64.b64encode(image_content).decode('utf-8')
-                                send_graph_api_reply(sender_id,"✨ Photo received! Working some magic ⚡")
+                                send_graph_api_reply(sender_id, "✨ Photo received! Working some magic ⚡")
 
                                 try:
                                     clothing_items = process_response(
@@ -690,7 +677,7 @@ def handle_instagram_messages():
                                         instagram_username=sender_username
                                     )
                                     print("10. Image processed successfully")
-                                    send_graph_api_reply(sender_id,"🎨 Almost ready to share your masterpiece! 🌟")
+                                    send_graph_api_reply(sender_id, "🎨 Almost ready to share your masterpiece! 🌟")
 
                                     if hasattr(clothing_items, 'Purpose'):
                                         if clothing_items.Purpose == 1:
@@ -712,6 +699,11 @@ def handle_instagram_messages():
                             else:
                                 print(f"Media fetch failed with status {media_response.status_code}")
                                 send_graph_api_reply(sender_id, "Sorry, I couldn't access your image. Please try sending it again.")
+                        elif media_type in ['video', 'reel']:
+                            print("Processing video/reel content")
+                            send_graph_api_reply(sender_id, "🎬 Exciting reel spotted! Let's see what we've got...")
+                            reply = process_reels(media_url, sender_username, sender_id)
+                            print(f"11. Sending final reply for video: {reply}")
                     except Exception as e:
                         print(f"Error processing media: {e}")
                         send_graph_api_reply(sender_id, "Sorry, there was an error processing your media. Please try again.")
