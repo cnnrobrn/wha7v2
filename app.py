@@ -632,10 +632,14 @@ def handle_instagram_messages():
                     message = messaging.get('message', {})
                     print(f"Full message content: {json.dumps(message, indent=2)}")
                     
-                    if not message:
-                        print("No message content found")
+                    # Check for text messages first
+                    if message.get('text'):
+                        print("Text message received")
+                        text_response = "Hi! 👋 I'm your Wha7 Image Consultant. I can help you discover outfits in photos and videos. Send me photos of outfits you like, or screenshots of TikToks and Reels. I'll help you find similar styles! 🎯"
+                        send_graph_api_reply(sender_id, text_response)
                         continue
 
+                    # Handle media attachments
                     attachments = message.get('attachments', [])
                     if not attachments:
                         print("No attachments found")
