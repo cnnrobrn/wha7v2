@@ -451,12 +451,15 @@ def analyze_image_with_openai(base64_image=None,text=None,true_prompt=prompt,for
     except Exception as e:
         print(f"Error analyzing image with OpenAI: {e}")
         return None
-def process_response(base64_image, from_number, text, prompt_text=prompt, format=Outfits, instagram_username=None):
-    if base64_image:
+def process_response(base64_image, from_number, text, prompt_text=prompt, format=Outfits, instagram_username=None,type='image'):
+    if base64_image and type=='image':
         base64_image_data = f"data:image/jpeg;base64,{base64_image}"
         clothing_items = analyze_image_with_openai(base64_image_data, text, prompt_text, format)
         if format == Outfits:
             database_commit(clothing_items, from_number, base64_image_data, instagram_username)
+    elif base64_image and type=='video'
+        clothing_items = None
+        database_commit(clothing_items,from_number,base64_image_data,instagram_username)
     else:
         clothing_items = analyze_text_with_openai(text=text, true_prompt=prompt_text, format=format)      
     return clothing_items
@@ -670,7 +673,7 @@ def handle_instagram_messages():
                     
                     try:
                         # Handle shared content and videos/reels
-                        if media_type == 'share':
+                        if media_type in ['image','share','ig_reel']:
                             media_response = requests.get(media_url)
                             print(f"9. Media fetch status: {media_response.status_code}")
                             send_graph_api_reply(sender_id, "Post received. Processing now. Please wait...")
@@ -680,13 +683,17 @@ def handle_instagram_messages():
                                 send_graph_api_reply(sender_id, "📸 Capturing your moment...")
                                 base64_image = base64.b64encode(image_content).decode('utf-8')
                                 send_graph_api_reply(sender_id, "✨ Photo received! Working some magic ⚡")
-
+                                if media_type in ['image','share']:
+                                    type='image'
+                                else:
+                                    type = 'video'
                                 try:
                                     clothing_items = process_response(
                                         base64_image, 
                                         None, 
                                         "", 
-                                        instagram_username=sender_username
+                                        instagram_username=sender_username,
+                                        type=type
                                     )
                                     print("10. Image processed successfully")
                                     send_graph_api_reply(sender_id, "🎨 Almost ready to share your masterpiece! 🌟")
@@ -711,7 +718,7 @@ def handle_instagram_messages():
                             else:
                                 print(f"Media fetch failed with status {media_response.status_code}")
                                 send_graph_api_reply(sender_id, "Sorry, I couldn't access your image. Please try sending it again.")
-                        elif media_type in ['video', 'reel']:
+                        elif media_type in ['video', 'ig_reel']:
                             print("Processing video/reel content")
                             send_graph_api_reply(sender_id, "🎬 Exciting reel spotted! Let's see what we've got...")
                             reply = process_reels(media_url, sender_username, sender_id)
