@@ -697,7 +697,9 @@ def handle_instagram_messages():
                                     )
                                     print("10. Image processed successfully")
                                     send_graph_api_reply(sender_id, "🎨 Almost ready to share your masterpiece! 🌟")
-
+                                    if type == 'video':
+                                            send_graph_api_reply(sender_id, "Almost ready! Open the app to finish your analysis")
+                                            return jsonify({'status': 'success'}), 200
                                     if hasattr(clothing_items, 'Purpose'):
                                         if clothing_items.Purpose == 1:
                                             reply = f"{clothing_items.Response} We found the following items:"
