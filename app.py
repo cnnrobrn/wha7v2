@@ -526,19 +526,20 @@ def database_commit(clothing_items, from_number, base64_image_data=None, instagr
             outfit = Outfit(phone_id=phone.id, image_data=base64_image_data, description="Outfit from image")
             Session.add(outfit)
             Session.commit()
-                    
-            if clothing_items.Article is not None:
-                for item in clothing_items.Article:
-                    new_item = Item(
-                        outfit_id=outfit.id, 
-                        description=item.Item, 
-                        search=item.Amazon_Search, 
-                        processed_at=None
-                    )
-                    Session.add(new_item)
-                    Session.commit()
-            else:
-                print("No items found in clothing_items.Article")
+
+            if clothing_items is not None:
+                if clothing_items.Article is not None:
+                    for item in clothing_items.Article:
+                        new_item = Item(
+                            outfit_id=outfit.id, 
+                            description=item.Item, 
+                            search=item.Amazon_Search, 
+                            processed_at=None
+                        )
+                        Session.add(new_item)
+                        Session.commit()
+                else:
+                    print("No items found in clothing_items.Article")
         finally:
             Session.close()
 
