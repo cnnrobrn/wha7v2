@@ -459,6 +459,7 @@ def process_response(base64_image, from_number, text, prompt_text=prompt, format
             database_commit(clothing_items, from_number, base64_image_data, instagram_username)
     elif base64_image and type=='video':
         clothing_items = None
+        base64_image_data =f"data:video/mp4;base64,{base64_image}"
         database_commit(clothing_items,from_number,base64_image_data,instagram_username)
     else:
         clothing_items = analyze_text_with_openai(text=text, true_prompt=prompt_text, format=format)      
