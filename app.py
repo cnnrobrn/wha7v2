@@ -334,7 +334,7 @@ def sms_reply():
             # Construct response message
             if(clothing_items.Purpose == 1):
                 resp = MessagingResponse()
-                resp.message(f"{clothing_items.Response} You can view the outfit on the Wha7 app. Join the waitlist at https://www.wha7.com/f/5f804b34-9f3a-4bd6-a9e5-bf21e2a9018d")
+                resp.message(f"{clothing_items.Response} You can view the outfit on the Wha7 app. Get there faster by clicking the link redirect.wha7.com/")
                 return str(resp)
             elif(clothing_items.Purpose == 2):
                 resp = MessagingResponse()
@@ -707,7 +707,7 @@ def handle_instagram_messages():
                                             reply = f"{clothing_items.Response} We found the following items:"
                                             for items in clothing_items.Article:
                                                 reply += f"\n - {items.Item}"
-                                            reply += "\n \n You can view the outfit on the Wha7 app. Download from the App Store!"
+                                            reply += "\n \n You can view the outfit on the Wha7 app. Get there faster by clicking the link redirect.wha7.com/"
                                         elif clothing_items.Purpose == 2:
                                             reply = clothing_items.Response
                                         else:
@@ -869,7 +869,7 @@ def process_reels(reel_url, instagram_username, sender_id):
                 send_graph_api_reply(sender_id, final_reply)
                 for item in all_responses:
                     send_graph_api_reply(sender_id,item)
-                send_graph_api_reply(sender_id, "You can view all outfits on the Wha7 app. Download from the App Store!")
+                send_graph_api_reply(sender_id, "You can view all outfits on the Wha7 app. Get there faster by clicking the link redirect.wha7.com/")
                 return final_reply
             else:
                 final_reply = "I couldn't identify any distinct outfits in the reel. Please try again with clearer footage."
