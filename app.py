@@ -407,7 +407,7 @@ def database_commit(clothing_items, from_number, base64_image_data=None, instagr
                 for item in clothing_items.Article:
                     new_item = Item(
                         outfit_id=outfit.id, 
-                        description=item.Item, 
+                        description=item.Amazon_Search, 
                         search=item.Amazon_Search, 
                         processed_at=None
                     )
