@@ -104,10 +104,10 @@ Include details as much as possible including:
 Provide identified items and optimized Amazon search strings with enough detail to find the exact item in the image. 
 
 # Examples
-- **Item**: Men's Nike Running Jacket
+- **Item**: Men's Nike Running Jacket Black Full Zip Lightweight Logo Top Right Chest with Four Pockets
   **Amazon_Search**: mens nike running jacket black full zip lightweight logo top right chest with four pockets
 
-- **Item**: Women's Tiffany Pendant
+- **Item**: Women's Tiffany Pendant Sterling Silver Chain Classic Design Small Red Heart Charm
   **Amazon_Search**: womens tiffany pendant sterling silver chain classic design small red heart charm
 
 # Notes
@@ -425,7 +425,7 @@ def database_commit(clothing_items, from_number, base64_image_data=None, instagr
                     for item in clothing_items.Article:
                         new_item = Item(
                             outfit_id=outfit.id, 
-                            description=item.Amazon_Search, 
+                            description=item.Item, 
                             search=item.Amazon_Search, 
                             processed_at=None
                         )
