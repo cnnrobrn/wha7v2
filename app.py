@@ -91,7 +91,7 @@ For each identified item, provide:
 - **Item**: Detailed item name with visible characteristics.
 - **Amazon_Search**: Specific search string with essential details for exact matching.
 
-Include details where applicable:
+Include details as much as possible including:
 - Gender (men's, women's, etc.)
 - Size and age group
 - Color, pattern, material, and texture
@@ -101,14 +101,14 @@ Include details where applicable:
 - Accessory specifics (for jewelry, bags, shoes, watches)
 
 # Output Format
-Provide identified items and optimized Amazon search strings. 
+Provide identified items and optimized Amazon search strings with enough detail to find the exact item in the image. 
 
 # Examples
 - **Item**: Men's Nike Running Jacket
-  **Amazon_Search**: mens nike running jacket black full zip lightweight
+  **Amazon_Search**: mens nike running jacket black full zip lightweight logo top right chest with four pockets
 
 - **Item**: Women's Tiffany Pendant
-  **Amazon_Search**: womens tiffany pendant sterling silver chain classic design
+  **Amazon_Search**: womens tiffany pendant sterling silver chain classic design small red heart charm
 
 # Notes
 Ensure complete identification and description of each item’s characteristics."""
