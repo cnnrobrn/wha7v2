@@ -89,7 +89,7 @@ prompt = """Identify all clothing and accessory items in an image with detailed 
 
 For each identified item, provide:
 - **Item**: Detailed item name with visible characteristics.
-- **Amazon_Search**: Specific search string with essential details for exact matching.
+- **Amazon_Search**: Specific search string with essential details for exact matching of the item through google shopping search.
 
 Include details as much as possible including:
 - Gender (men's, women's, etc.)
@@ -98,20 +98,24 @@ Include details as much as possible including:
 - Design elements (fit, cut, closures, etc.)
 - Brand information
 - Occasion and style
+- Aestetic (Christmas, street, formal, etc.)
 - Accessory specifics (for jewelry, bags, shoes, watches)
 
 # Output Format
 Provide identified items and optimized Amazon search strings with enough detail to find the exact item in the image. 
 
 # Examples
-- **Item**: Men's Nike Running Jacket Black Full Zip Lightweight Logo Top Right Chest with Four Pockets
-  **Amazon_Search**: mens nike running jacket black full zip lightweight logo top right chest with four pockets
+- **Item**: Men's Nike Running Jacket Black Full Zip Lightweight Logo Top Right Chest with Four Pockets Athleisure
+  **Amazon_Search**: mens nike running jacket black full zip lightweight logo top right chest with four pockets athleisure
 
-- **Item**: Women's Tiffany Pendant Sterling Silver Chain Classic Design Small Red Heart Charm
-  **Amazon_Search**: womens tiffany pendant sterling silver chain classic design small red heart charm
+- **Item**: Women's Tiffany Pendant Sterling Silver Chain Classic Design Small Red Heart Charm Elegant
+  **Amazon_Search**: womens tiffany pendant sterling silver chain classic design small red heart charm elegant
 
 # Notes
-Ensure complete identification and description of each item’s characteristics."""
+- Ensure complete identification and description of each item’s characteristics.
+- Must be complete enough to identify the exact item using Google shopping search.
+- Must identify every article of clothing in the image.
+- The gender of the clothing should match the individual wearing it."""
 
 recommendation_prompt ="""You are the world's premier fashion and accessories consultant, specializing in contemporary style optimization and personalized recommendations. Your expertise covers all current trends through 2024 and you provide advice in a warm, encouraging, and professional manner.
 
