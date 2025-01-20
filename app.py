@@ -231,7 +231,7 @@ def sms_reply():
             # Construct response message
             if(clothing_items.Purpose == 1):
                 resp = MessagingResponse()
-                resp.message(f"{clothing_items.Response} You can view the outfit on the Wha7 app. Get there faster by clicking the link redirect.wha7.com/")
+                resp.message(f"{clothing_items.Response} You can view the outfit on the Wha7 app. Get there faster by clicking the link .wha7.com/")
                 return str(resp)
             elif(clothing_items.Purpose == 2):
                 resp = MessagingResponse()
@@ -593,14 +593,14 @@ def handle_instagram_messages():
                                     print("10. Image processed successfully")
                                     send_graph_api_reply(sender_id, "🎨 Almost ready to share your masterpiece! 🌟")
                                     if type == 'video':
-                                            send_graph_api_reply(sender_id, "Almost ready! Open the app to finish your analysis. Get there faster by clicking the link redirect.wha7.com/")
+                                            send_graph_api_reply(sender_id, "Almost ready! Open the app to finish your analysis. Get there faster by clicking the link .wha7.com/")
                                             return jsonify({'status': 'success'}), 200
                                     if hasattr(clothing_items, 'Purpose'):
                                         if clothing_items.Purpose == 1:
                                             reply = f"{clothing_items.Response} We found the following items:"
                                             for items in clothing_items.Article:
                                                 reply += f"\n - {items.Item}"
-                                            reply += "\n \n You can view the outfit on the Wha7 app. Get there faster by clicking the link redirect.wha7.com/"
+                                            reply += "\n \n You can view the outfit on the Wha7 app. Download on the app store here: https://apps.apple.com/us/app/wha7/id6738637892"
                                         elif clothing_items.Purpose == 2:
                                             reply = clothing_items.Response
                                         else:
@@ -762,7 +762,7 @@ def process_reels(reel_url, instagram_username, sender_id):
                 send_graph_api_reply(sender_id, final_reply)
                 for item in all_responses:
                     send_graph_api_reply(sender_id,item)
-                send_graph_api_reply(sender_id, "You can view all outfits on the Wha7 app. Get there faster by clicking the link redirect.wha7.com/")
+                send_graph_api_reply(sender_id, "You can view all outfits on the Wha7 app. Download the app here: https://apps.apple.com/us/app/wha7/id6738637892")
                 return final_reply
             else:
                 final_reply = "I couldn't identify any distinct outfits in the reel. Please try again with clearer footage."
