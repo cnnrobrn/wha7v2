@@ -34,4 +34,4 @@ asyncpg
 httpx
 
 # Custom Package
-git+https://${GITHUB_TOKEN}@github.com/cnnrobrn/wha7-models.git@main
+git+https://${GITHUB_TOKEN}@github.com/wha7app/wha7-models.git@main
