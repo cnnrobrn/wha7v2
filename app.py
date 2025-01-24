@@ -279,7 +279,7 @@ def analyze_text_with_openai(text=None, true_prompt=prompt,format=Outfits):
                     "content": [
                         {
                             "type": "text",
-                            "text": f"The user sent the following text: {text}",
+                            "text": text,
                         },
                     ],
                 }
