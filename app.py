@@ -273,14 +273,10 @@ def analyze_text_with_openai(text=None, true_prompt=prompt,format=Outfits):
         response = client.beta.chat.completions.parse(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "You are an expert at structured data extraction. You will be given a photo and should convert it into the given structure."},
+                {"role": "system", "content": true_prompt},
                 {
                     "role": "user",
                     "content": [
-                        {
-                            "type": "text",
-                            "text": true_prompt,
-                        },
                         {
                             "type": "text",
                             "text": f"The user sent the following text: {text}",
