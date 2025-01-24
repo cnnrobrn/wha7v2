@@ -94,7 +94,7 @@ For each identified item, provide:
 Include details as much as possible including:
 - Gender (men's, women's, etc.)
 - Size and age group
-- Color, pattern, material, and texture
+- Color, pattern, material, and texture (forest green knit, green/gray checkers, plaid, etc.)
 - Design elements (fit, cut, closures, etc.)
 - Brand information
 - Occasion and style
