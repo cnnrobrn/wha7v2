@@ -98,7 +98,7 @@ Include details as much as possible including:
 - Design elements (fit, cut, closures, etc.)
 - Brand information
 - Occasion and style
-- Aesthetic (Christmas, street, formal, etc.)
+- Aesthetic (Christmas, street, formal, designer, etc.)
 - Accessory specifics (for jewelry, bags, shoes, watches)
 
 # Output Format
@@ -107,6 +107,9 @@ Provide identified items and optimized Amazon search strings with enough detail 
 # Examples
 - **Item**: Men's Nike Running Jacket Black Full Zip Lightweight Logo Top Right Chest with Four Pockets Athleisure
   **Amazon_Search**: mens nike running jacket black full zip lightweight logo top right chest with four pockets athleisure
+
+- **Item**: Designer Leopard Print Fur Overcoat Long Coat with Shawl Collar and Open Front Design
+  **Amazon_Search**: Designer Leopard Print Fur Overcoat Long Coat with Shawl Collar and Open Front Design
 
 - **Item**: Women's Tiffany Pendant Sterling Silver Chain Classic Design Small Red Heart Charm Elegant
   **Amazon_Search**: womens tiffany pendant sterling silver chain classic design small ruby red heart charm elegant
