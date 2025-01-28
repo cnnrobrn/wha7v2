@@ -707,7 +707,6 @@ def process_reels(reel_url, instagram_username, sender_id):
             os.unlink(temp_file_path)
             if all_responses:
                 final_reply = f"I found {len(all_responses)} different outfits in your reel:"
-                for item in all_responses:
                 return final_reply
             else:
                 final_reply = "I couldn't identify any distinct outfits in the reel. Please try again with clearer footage."
