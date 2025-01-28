@@ -507,7 +507,9 @@ def handle_instagram_messages():
                     # Extract message content
                     message = messaging.get('message', {})
                     print(f"Full message content: {json.dumps(message, indent=2)}")
-                    
+                    send_graph_api_reply(sender_id, "Message recieved! Check the app for details")
+                    send_graph_api_reply(sender_id, "redirect.wha7.com")
+
                     # Check for text messages first
                     if message.get('text'):
                         print("Text message received")
