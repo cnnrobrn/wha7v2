@@ -511,16 +511,12 @@ def handle_instagram_messages():
                     # Check for text messages first
                     if message.get('text'):
                         print("Text message received")
-                        text_response = "Hi! 👋 I'm your Wha7 Image Consultant. I can help you discover outfits in photos and videos. Send me photos of outfits you like, or screenshots of TikToks and Reels. I'll help you find similar styles! 🎯"
-                        send_graph_api_reply(sender_id, text_response)
                         continue
 
                     # Handle media attachments
                     attachments = message.get('attachments', [])
                     if not attachments:
                         print("No attachments found")
-                        reply = send_graph_api_reply(sender_id, "Please send a screenshot of a TikTok or Reel. You can access outfits you've already shared on our app at redirect.wha7.com")
-                        print(f"Default message response: {reply}")
                         continue
 
                     # Process the first attachment
@@ -549,7 +545,6 @@ def handle_instagram_messages():
                         if media_type in ['image','share','ig_reel']:
                             media_response = requests.get(media_url)
                             print(f"9. Media fetch status: {media_response.status_code}")
-                            send_graph_api_reply(sender_id, "Post received. View in app at redirect.wha7.com")
                             
                             if media_response.status_code == 200:
                                 image_content = media_response.content
@@ -568,16 +563,6 @@ def handle_instagram_messages():
                                     )
                                     if type == 'video':
                                             return jsonify({'status': 'success'}), 200
-                                    if hasattr(clothing_items, 'Purpose'):
-                                        if clothing_items.Purpose == 1:
-                                            reply = f"{clothing_items.Response} We found the following items:"
-                                            for items in clothing_items.Article:
-                                                reply += f"\n - {items.Item}"
-                                            reply += "\n \n You can view the outfit on the Wha7 app."
-                                        
-                                        print(f"11. Sending final reply: {reply}")
-                                        if reply:
-                                            response = send_graph_api_reply(sender_id, reply)
                                 except Exception as e:
                                     print(f"Error in processing response: {e}")
                             else:
@@ -700,7 +685,6 @@ def process_reels(reel_url, instagram_username, sender_id):
 
             # Process frames with error handling for each
             all_responses = []
-            send_graph_api_reply(sender_id,"🎯 Target acquired! Processing your awesome content 🔄")
             for idx, base64_image in enumerate(unique_frames):
                 try:
                     clothing_items = process_response(
@@ -721,17 +705,12 @@ def process_reels(reel_url, instagram_username, sender_id):
             
             # Clean up
             os.unlink(temp_file_path)
-            send_graph_api_reply(sender_id,"⚡ Almost there! (Beta feature - might see some déjà vu content! 😉). We're looking to update reels in our next release!")
             if all_responses:
                 final_reply = f"I found {len(all_responses)} different outfits in your reel:"
-                send_graph_api_reply(sender_id, final_reply)
                 for item in all_responses:
-                    send_graph_api_reply(sender_id,item)
-                send_graph_api_reply(sender_id, "You can view all outfits on the Wha7 app. Download the app here: https://apps.apple.com/us/app/wha7/id6738637892")
                 return final_reply
             else:
                 final_reply = "I couldn't identify any distinct outfits in the reel. Please try again with clearer footage."
-                send_graph_api_reply(sender_id, final_reply)
             return final_reply
             
         finally:
