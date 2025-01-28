@@ -519,7 +519,7 @@ def handle_instagram_messages():
                     attachments = message.get('attachments', [])
                     if not attachments:
                         print("No attachments found")
-                        reply = send_graph_api_reply(sender_id, "Please send a screenshot of a TikTok or Reel. You can access outfits you've already shared on our app or after signing up via https://www.wha7.com/f/5f804b34-9f3a-4bd6-a9e5-bf21e2a9018d")
+                        reply = send_graph_api_reply(sender_id, "Please send a screenshot of a TikTok or Reel. You can access outfits you've already shared on our app at redirect.wha7.com")
                         print(f"Default message response: {reply}")
                         continue
 
@@ -549,13 +549,11 @@ def handle_instagram_messages():
                         if media_type in ['image','share','ig_reel']:
                             media_response = requests.get(media_url)
                             print(f"9. Media fetch status: {media_response.status_code}")
-                            send_graph_api_reply(sender_id, "Post received. Processing now. Please wait...")
+                            send_graph_api_reply(sender_id, "Post received. View in app at redirect.wha7.com")
                             
                             if media_response.status_code == 200:
                                 image_content = media_response.content
-                                send_graph_api_reply(sender_id, "📸 Capturing your moment...")
                                 base64_image = base64.b64encode(image_content).decode('utf-8')
-                                send_graph_api_reply(sender_id, "✨ Photo received! Working some magic ⚡")
                                 if media_type in ['image','share']:
                                     type='image'
                                 else:
@@ -568,39 +566,28 @@ def handle_instagram_messages():
                                         instagram_username=sender_username,
                                         type=type
                                     )
-                                    print("10. Image processed successfully")
-                                    send_graph_api_reply(sender_id, "🎨 Almost ready to share your masterpiece! 🌟")
                                     if type == 'video':
-                                            send_graph_api_reply(sender_id, "Almost ready! Open the app to finish your analysis. Get there faster by clicking the link .wha7.com/")
                                             return jsonify({'status': 'success'}), 200
                                     if hasattr(clothing_items, 'Purpose'):
                                         if clothing_items.Purpose == 1:
                                             reply = f"{clothing_items.Response} We found the following items:"
                                             for items in clothing_items.Article:
                                                 reply += f"\n - {items.Item}"
-                                            reply += "\n \n You can view the outfit on the Wha7 app. Download on the app store here: https://apps.apple.com/us/app/wha7/id6738637892"
-                                        elif clothing_items.Purpose == 2:
-                                            reply = clothing_items.Response
-                                        else:
-                                            reply = "I'm sorry, I'm not sure how to respond to that. Can you retry?"
+                                            reply += "\n \n You can view the outfit on the Wha7 app."
                                         
                                         print(f"11. Sending final reply: {reply}")
-                                        response = send_graph_api_reply(sender_id, reply)
-                                        print(f"12. Final response: {response}")
+                                        if reply:
+                                            response = send_graph_api_reply(sender_id, reply)
                                 except Exception as e:
                                     print(f"Error in processing response: {e}")
-                                    send_graph_api_reply(sender_id, "Sorry, I had trouble processing your image. Please try again.")
                             else:
                                 print(f"Media fetch failed with status {media_response.status_code}")
-                                send_graph_api_reply(sender_id, "Sorry, I couldn't access your image. Please try sending it again.")
                         elif media_type in ['video', 'ig_reel']:
                             print("Processing video/reel content")
-                            send_graph_api_reply(sender_id, "🎬 Exciting reel spotted! Let's see what we've got...")
                             reply = process_reels(media_url, sender_username, sender_id)
                             print(f"11. Sending final reply for video: {reply}")
                     except Exception as e:
                         print(f"Error processing media: {e}")
-                        send_graph_api_reply(sender_id, "Sorry, there was an error processing your media. Please try again.")
 
         return jsonify({'status': 'success'}), 200
     
